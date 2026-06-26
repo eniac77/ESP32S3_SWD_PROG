@@ -79,7 +79,9 @@ flm_packs/             # vendored .FLM források (ST DFP)
 
 **Szabadon kiosztható:** GPIO1–18, 21, 38–42, 47, 48.
 
-**Javasolt kiosztás:** SWCLK=GPIO4, SWDIO=GPIO5, nRST=GPIO6 (OD+pullup), UART TX=GPIO17, UART RX=GPIO18, OLED SDA=GPIO8, OLED SCL=GPIO9, Enkóder A=GPIO10, B=GPIO11, SW=GPIO12, Vref ADC=GPIO1, táp EN=GPIO13, LED=GPIO14.
+**Javasolt kiosztás:** SWCLK=GPIO4, SWDIO=GPIO5, nRST=GPIO6 (OD+pullup — **fenntartva az ESP-n, a célhoz NEM kötjük**), UART TX=GPIO17, UART RX=GPIO18, OLED SDA=GPIO8, OLED SCL=GPIO9, Enkóder A=GPIO10, B=GPIO11, SW=GPIO12, Vref ADC=GPIO1, táp EN=GPIO13, LED=GPIO14.
+
+> **A cél-csatlakozó nRST nélkül:** SWCLK, SWDIO, GND, (VTARGET sense). A reset vonalra nincs szükség — a csatlakozás SYSRESETREQ-kel megy (lásd lejjebb).
 
 ## Kulcs sdkconfig (N16R8)
 
@@ -116,7 +118,7 @@ idf.py add-dependency "joltwallet/littlefs"
 
 ## Fontos technikai részletek (a tervből)
 
-- **Connect-under-reset KÖTELEZŐ:** nRST assert → SWD bring-up → DEMCR `VC_CORERESET` → nRST release → halt a reset-vektoron. Enélkül alvó/lockolt/WDG-s cél megfekszik.
+- **Csatlakozás nRST NÉLKÜL (fontos megkötés):** a cél áramkörökön a reset (nRST) láb **nem elérhető**, ezért a programozás tisztán SWD-n megy: SWD bring-up → `DHCSR` halt → `DEMCR VC_CORERESET` → `AIRCR SYSRESETREQ` (szoftveres reset) → halt a reset-vektoron → vektor-catch törlése. A `C_DEBUGEN` a debug-tápdomainben marad, a SYSRESETREQ nem törli. Korlát: alvó/lockolt/RDP-s cél, amit csak hardveres nRST-vel lehetne ébreszteni, így nem mindig érhető el — normál programozáshoz viszont elég. Az ESP **nRST=GPIO6 lába megmarad** (fenntartva más célra), de a cél-programozás nem használja.
 - **FLM ABI** (FlashOS.h): `Init/UnInit/EraseSector/EraseChip/ProgramPage/Verify`, mind **0 = siker**.
 - **FLM-hívás xPSR = 0x01000000** (T-bit!) — enélkül INVSTATE fault. PC/LR Thumb-bittel (`|1`).
 - **SWD bring-up:** ≥50 SWCLK (SWDIO=1) → JTAG-to-SWD switch `0xE79E` LSB-first → ≥50 SWCLK → DPIDR.

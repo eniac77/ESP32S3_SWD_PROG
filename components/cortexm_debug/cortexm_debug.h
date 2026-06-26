@@ -26,9 +26,10 @@ esp_err_t cortexm_halt(void);        /* DHCSR 0xA05F0003, poll S_HALT */
 esp_err_t cortexm_resume(void);      /* DHCSR 0xA05F0001 */
 esp_err_t cortexm_sysreset(void);    /* AIRCR 0x05FA0004 (SYSRESETREQ) */
 
-/* Connect-under-reset (KÖTELEZŐ): nRST assert -> adiv5_connect ->
-   DEMCR VC_CORERESET -> nRST release -> halt a reset-vektoron.
-   idcode_out NULL megengedett. */
+/* Csatlakozás "reset alatt" — nRST NÉLKÜL, tisztán SWD-n (a cél áramkörön a
+   reset láb nem elérhető): adiv5_connect -> halt -> DEMCR VC_CORERESET ->
+   AIRCR SYSRESETREQ (szoftveres reset) -> halt a reset-vektoron -> vektor-catch
+   törlése. A név a kompatibilitás miatt marad. idcode_out NULL megengedett. */
 esp_err_t cortexm_connect_under_reset(uint32_t *idcode_out);
 
 esp_err_t cortexm_reg_read(int regsel, uint32_t *val);

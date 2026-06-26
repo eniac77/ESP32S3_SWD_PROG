@@ -10,7 +10,7 @@ Egyetlen ESP32-S3-N16R8 modul (16 MB flash, 8 MB octal PSRAM), ESP-IDF alapon. A
 
 ## Funkciók
 
-- **SWD flashelés PC nélkül**: `.bin` firmware felprogramozása STM32-re, a flash-algoritmust a cél RAM-jában futtatva (connect-under-reset kötelező).
+- **SWD flashelés PC nélkül**: `.bin` firmware felprogramozása STM32-re, a flash-algoritmust a cél RAM-jában futtatva. **nRST nélkül** működik: a csatlakozás `SYSRESETREQ` + vektor-catch szoftveres resettel megy (a cél áramkörön nincs reset láb).
 - **Multi-család támogatás**: F0/F1/F3/F4/F7/L0/L1/L4/G0, DEV_ID alapú cél-felismeréssel és méret-detektálással.
 - **Soros konfig-híd**: bináris `.cfg` fájlok fel-/letöltése a futó cél STM32 alkalmazásába/ból, keretezett UART-protokollon (`SOF | LEN | CMD | PAYLOAD | CRC16`).
 - **Élő adat**: a cél periodikus státusz-frame-jei egy közös `target_state` modellbe folynak, amit az OLED és a web-UI WebSocket egyszerre fogyaszt.
@@ -33,7 +33,7 @@ flowchart TB
     OLED[display_oled<br/>SSD1306]
     UI[ui / target_state]
     PROG[prog_session]
-    SWD[SWD<br/>SWCLK / SWDIO / nRST]
+    SWD[SWD<br/>SWCLK / SWDIO]
     TSER[target_serial]
     UART[UART TX/RX]
     STM[Cél STM32]
@@ -93,7 +93,7 @@ Modul: **ESP32-S3-N16R8** (16 MB flash, 8 MB octal PSRAM).
 |---|---|---|
 | SWCLK (out) | GPIO4 | `dedic_gpio` bundle |
 | SWDIO (bidir) | GPIO5 | `dedic_gpio` out+in, turnaround |
-| nRST (out, OD) | GPIO6 | open-drain + pullup, connect-under-reset |
+| nRST (out, OD) | GPIO6 | **fenntartva az ESP-n, a célhoz NEM kötjük** (más célra) |
 | Cél UART TX | GPIO17 | `target_serial` (UART1, sima 3.3 V) |
 | Cél UART RX | GPIO18 | `target_serial` (sima 3.3 V) |
 | (tartalék) | GPIO15 | szabad (korábbi RS485 DE elhagyva) |
@@ -109,8 +109,10 @@ Modul: **ESP32-S3-N16R8** (16 MB flash, 8 MB octal PSRAM).
 ### Cél-csatlakozó
 
 ```
-SWCLK · SWDIO · nRST · UART_TX · UART_RX · GND · VTARGET (sense/feed)
+SWCLK · SWDIO · UART_TX · UART_RX · GND · VTARGET (sense/feed)
 ```
+
+> **nRST nincs a cél-csatlakozón.** A cél áramkörökön a reset láb tipikusan nem elérhető, és a rendszernek **nRST nélkül is programoznia kell**. A csatlakozás ezért tisztán SWD-n, **`SYSRESETREQ` + vektor-catch** szoftveres resettel megy (lásd lent). Az ESP nRST=GPIO6 lába megmarad más célra.
 
 MVP: **3.3 V-os cél**, SWCLK/SWDIO közvetlenül, soros ~33–100 Ω-mal. Eltérő Vdd-hez SWDIO bidir szintfordító kell. A cél Vdd-jét ADC-vel ellenőrizd, mielőtt tranzakciót indítasz.
 
@@ -121,7 +123,7 @@ MVP: **3.3 V-os cél**, SWCLK/SWDIO közvetlenül, soros ~33–100 Ω-mal. Elté
    ┌───────────────────────┐             ┌──────────────────┐
    │ GPIO4  SWCLK ──────────┼── 33-100Ω ─┤ SWCLK            │
    │ GPIO5  SWDIO ──────────┼── 33-100Ω ─┤ SWDIO            │
-   │ GPIO6  nRST  ──────────┼── OD+pull ─┤ NRST             │
+   │ GPIO6  nRST  (nem köt.) │   (cél reset nélkül, SYSRESETREQ)│
    │ GPIO17 UART_TX ────────┼────────────┤ RX  (futó app)   │
    │ GPIO18 UART_RX ────────┼────────────┤ TX  (futó app)   │
    │ GND ───────────────────┼────────────┤ GND              │

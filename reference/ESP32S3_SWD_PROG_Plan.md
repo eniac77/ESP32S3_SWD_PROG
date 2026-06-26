@@ -12,6 +12,8 @@
 
 > **USB host (pendrive)**: egyelőre **félretéve**, lásd a 18. (Future) szekciót — a forrás most LittleFS.
 
+> ⚠️ **KORREKCIÓ (nRST): a cél áramkörökön a reset (nRST) láb NEM elérhető**, ezért a rendszernek **nRST nélkül** kell programoznia. A lent több helyen szereplő „connect-under-reset (nRST assert/release)" helyett a tényleges megvalósítás **tisztán SWD-s**: halt → `DEMCR VC_CORERESET` → `AIRCR SYSRESETREQ` (szoftveres reset) → halt a reset-vektoron. Az ESP nRST=GPIO6 lába megmarad (fenntartva más célra), de a cél-csatlakozóra nem megy. Lásd `components/cortexm_debug/` és a CLAUDE.md-t.
+
 ---
 
 ## 1. Architektúra áttekintés
