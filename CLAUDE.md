@@ -21,12 +21,17 @@ A **teljes szoftveres váz kész és zöldre fordul** (esp32s3). Mind a 16 kompo
 
 Kész és fordul: `swd_phy`, `adiv5`, `cortexm_debug`, `flm_runner`, `flm_blobs` (üres tábla), `target_db` (42 STM32 tag), `prog_session` (end-to-end), `storage_lfs`, `display_oled`, `input_enc`, `ui`, `target_serial`, `target_state`, `net_wifi`, `web_ui`, `ftp_srv`. Tool: `tools/flm_extract.py`.
 
-**Flash-loaderek (FONTOS eltérés a tervtől):** a terv CMSIS `.FLM`-et írt, de a gépen a **STM32CubeProgrammer `.stldr`** (ST loader-ABI) loaderei vannak meg DEV_ID szerint nevezve (`bin/FlashLoader/0x431.stldr` stb.), ezért az **ST ABI**-t kötöttük be. Különbségek a CMSIS-hez: `Init/Write(addr,size,buf)/SectorErase(start,end)/MassErase/Verify`, **siker = 1** (nem 0), `StorageInfo` leíró. A `flm_algo_t` mindkét ABI-t leírja (`abi`, `success_ret`, `load_addr`, abszolút belépési pontok). Jelenleg **10 céltípus** generálva: 0x440(F0) 0x410(F1) 0x422(F3) 0x413(F4) 0x431(F411) 0x449(F7) 0x417(L0) 0x416(L1) 0x415(L4) 0x460(G0).
-- **Újrageneráláshoz** (több céltípus / más gép): `tools/flm_extract.py <id>.stldr ... -o components/flm_blobs/flm_generated.c --header components/flm_blobs/flm_generated.h` (pyelftools kell). A nyers `.stldr` ST-proprietary → **NEM kerül a repóba**, csak a generált C tömbök.
+**Flash-loaderek (FONTOS eltérés a tervtől):** a terv CMSIS `.FLM`-et írt, de a gépen a **STM32CubeProgrammer `.stldr`** (ST loader-ABI) loaderei vannak meg DEV_ID szerint nevezve (`bin/FlashLoader/0x431.stldr` stb.), ezért az **ST ABI**-t kötöttük be. Különbségek a CMSIS-hez: `Init/Write(addr,size,buf)/SectorErase(start,end)/MassErase/Verify`, **siker = 1** (nem 0), `StorageInfo` leíró. A `flm_algo_t` mindkét ABI-t leírja (`abi`, `success_ret`, `load_addr`, abszolút belépési pontok). Jelenleg **mind a 42** target_db DEV_ID-hez van loader generálva (`flm_generated.c`, ~71 KB), az ST `Verify` opcionális (a runner visszaolvasással verifikál).
+- **Újrageneráláshoz** (más gép / több típus): `tools/flm_extract.py <id>.stldr ... -o components/flm_blobs/flm_generated.c --header components/flm_blobs/flm_generated.h` (pyelftools kell). A nyers `.stldr` ST-proprietary → **NEM kerül a repóba**, csak a generált C tömbök.
+
+## Web-UI és tesztek
+
+- **Web-UI**: `data/www/{index.html,app.css,app.js}` (vanilla, sötét téma, magyar). A `main/CMakeLists.txt` `littlefs_create_partition_image(storage ../data FLASH_IN_PROJECT)`-tal a `data/` a `storage` partícióra kerül (`idf.py flash` felírja). Fájllista/feltöltés/flash/cfg + élő WS (`type:"state"`/`"prog"`).
+- **Host tesztek** (`tests/`, PC-n futnak, nincs HW): `python -m unittest discover -s tests -v` (IDF python; pyelftools). 11 teszt: flm_extract ST-parser valódi `.stldr`-en, `flm_generated`↔`target_db` konzisztencia, CRC16 golden-vektorok. Natív host C fordító nincs → a C-logika golden-vektorral/konzisztenciával fedett.
 
 **Hátralévő — fizikai eszközt igényel, szoftveresen nem zárható le:**
 - **HW-validáció**: a SWD/FLM mag valódi STM32-n (F411/0x431 ajánlott) + logikai analizátorral (DPIDR/IDCODE; A0–A5 kész-kritériumok). Az ST `Init`/`Verify` visszatérési szemantikáját élesben kell igazolni.
-- **Finomítás**: target_db néhány flash-size reg címe "TODO ellenőrizni"; web auth (Basic/token) AP-módra; multi-család teszt (C1); RDP/hibakódok (C2); több céltípus a táblába.
+- **Finomítás**: target_db néhány flash-size reg címe "TODO ellenőrizni"; web auth (Basic/token) AP-módra; multi-család teszt (C1); RDP/hibakódok (C2).
 
 ## Architektúra elve (KRITIKUS, ne sértsd meg)
 
