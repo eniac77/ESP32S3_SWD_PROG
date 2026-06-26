@@ -162,12 +162,25 @@ const flm_algo_t *target_db_select_flm(const target_info_t *info, uint32_t flash
         return NULL;
     }
 
+    /* Elsődleges: pontos DEV_ID egyezés. Az ST .stldr loaderek DEV_ID szerint
+     * nevezettek és a generált tábla beállítja a dev_id-t — ez a legpontosabb. */
+    if (info->dev_id != 0) {
+        for (size_t i = 0; i < count; i++) {
+            const flm_algo_t *a = table[i];
+            if (a && a->dev_id == info->dev_id) {
+                ESP_LOGI(TAG, "FLM valasztva DEV_ID alapjan: '%s' (0x%03X)",
+                         a->name ? a->name : "?", (unsigned)a->dev_id);
+                return a;
+            }
+        }
+    }
+
     const char *key = family_key(info->family);
     if (!key) {
         return NULL;
     }
 
-    /* Egyszerű név-substring egyezés + méret-illeszkedés. A legszorosabb
+    /* Másodlagos: név-substring egyezés + méret-illeszkedés. A legszorosabb
      * (legkisebb elegendő dev_size) találatot választjuk, hogy a megfelelő
      * méret-variáns kerüljön elő, ne mindig a legnagyobb. */
     const flm_algo_t *best = NULL;
