@@ -16,3 +16,6 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
 # FreeRTOS tick: 1 ms (UI/serial időzítéshez kényelmes)
 CONFIG_FREERTOS_HZ=1000
+
+# HTTP szerver WebSocket támogatás (web_ui /ws élő adat + progress)
+CONFIG_HTTPD_WS_SUPPORT=y
