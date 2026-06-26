@@ -28,6 +28,9 @@
 #include "storage_lfs.h"
 #include "target_state.h"
 #include "target_serial.h"
+#include "prog_session.h"   /* SWD flash orchestráció (prog_session_flash_file) */
+
+#include "freertos/task.h"
 
 static const char *TAG = "web_ui";
 
@@ -453,17 +456,115 @@ static esp_err_t api_cfg_push_handler(httpd_req_t *req)
 }
 
 /* ===================================================================== */
-/* REST: POST /api/program?file=/fw/x.bin  -> 501 (egyelőre)             */
+/* REST: POST /api/program?file=/fw/x.bin  -> prog_session flash         */
 /* ===================================================================== */
+
+/* prog_phase_t -> rövid név a WS JSON-höz. */
+static const char *prog_phase_name(prog_phase_t p)
+{
+    switch (p) {
+    case PROG_IDLE:    return "idle";
+    case PROG_CONNECT: return "connect";
+    case PROG_ERASE:   return "erase";
+    case PROG_PROGRAM: return "program";
+    case PROG_VERIFY:  return "verify";
+    case PROG_DONE:    return "done";
+    case PROG_FAILED:  return "failed";
+    default:           return "?";
+    }
+}
+
+/* prog_session progress callback: a flash-taszk kontextusából hívódik.
+   A státuszból JSON-t épít és a /ws klienseknek broadcastolja. */
+static void web_flash_cb(const prog_status_t *st, void *ctx)
+{
+    (void)ctx;
+    if (!st) return;
+
+    char json[256];
+    snprintf(json, sizeof(json),
+             "{\"type\":\"prog\","
+             "\"phase\":%d,"
+             "\"phase_name\":\"%s\","
+             "\"percent\":%d,"
+             "\"dev_id\":%u,"
+             "\"target_name\":\"%s\","
+             "\"message\":\"%s\"}",
+             (int)st->phase,
+             prog_phase_name(st->phase),
+             st->percent,
+             (unsigned)st->dev_id,
+             st->target_name,
+             st->message);
+
+    web_ui_ws_broadcast(json);
+}
+
+/* Külön FreeRTOS taszk: lefuttatja a szinkron flash-t, majd kilép.
+   Az argumentum egy malloc-olt /lfs-abszolút útvonal (a taszk free-zi). */
+static void web_flash_task(void *arg)
+{
+    char *full = (char *)arg;
+    ESP_LOGI(TAG, "flash taszk indul: %s", full);
+
+    esp_err_t err = prog_session_flash_file(full, 0, web_flash_cb, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "flash hiba: %s", esp_err_to_name(err));
+        /* Záró hibaüzenet a klienseknek (a cb FAILED-et is küldhetett már). */
+        char json[160];
+        snprintf(json, sizeof(json),
+                 "{\"type\":\"prog\",\"phase\":%d,\"phase_name\":\"failed\","
+                 "\"percent\":0,\"message\":\"%s\"}",
+                 (int)PROG_FAILED, esp_err_to_name(err));
+        web_ui_ws_broadcast(json);
+    } else {
+        ESP_LOGI(TAG, "flash kesz: %s", full);
+    }
+
+    free(full);
+    vTaskDelete(NULL);
+}
 
 static esp_err_t api_program_handler(httpd_req_t *req)
 {
     if (auth_check(req) != ESP_OK) {
         return send_json_error(req, "401 Unauthorized", "unauthorized");
     }
-    /* TODO: ide jön a prog_session indítása a 'file' paraméterrel, a
-     * progress/log a WS /ws-en (web_ui_ws_broadcast) megy majd. (terv 12.2) */
-    return send_json_error(req, "501 Not Implemented", "not_implemented");
+
+    /* Ha már fut egy flash, ne indítsunk másodikat. */
+    if (prog_session_busy()) {
+        return send_json_error(req, "409 Conflict", "busy");
+    }
+
+    /* 'file' query param (pl. "/fw/x.bin"), majd /lfs alá normalizálva.
+       A prog_session a kapott utat közvetlenül a storage_lfs_read_all-nak
+       adja, ami /lfs-abszolút utat vár -> a teljes "/lfs/fw/..." kell. */
+    char file[160] = {0};
+    if (get_query_param(req, "file", file, sizeof(file)) != ESP_OK) {
+        return send_json_error(req, "400 Bad Request", "missing file");
+    }
+    char full[200];
+    if (build_lfs_path(file, full, sizeof(full)) != ESP_OK) {
+        return send_json_error(req, "400 Bad Request", "invalid file");
+    }
+
+    /* A teljes utat a taszknak adjuk át (a taszk free-zi). */
+    char *arg = strdup(full);
+    if (!arg) {
+        return send_json_error(req, "500 Internal Server Error", "out of memory");
+    }
+
+    /* Külön taszk -> a handler azonnal visszatér (202), a progress a /ws-en. */
+    BaseType_t ok = xTaskCreate(web_flash_task, "web_flash", 8192, arg, 5, NULL);
+    if (ok != pdPASS) {
+        free(arg);
+        return send_json_error(req, "500 Internal Server Error", "task create failed");
+    }
+
+    ESP_LOGI(TAG, "flash kerelem: %s", full);
+    httpd_resp_set_status(req, "202 Accepted");
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, "{\"started\":true}");
 }
 
 /* ===================================================================== */

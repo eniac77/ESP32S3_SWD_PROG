@@ -17,7 +17,14 @@ Ez a fájl a Claude Code (és más AI-asszisztensek) számára ad iránymutatás
 
 ## Állapot
 
-Jelenleg **csak a terv létezik** (`reference/ESP32S3_SWD_PROG_Plan.md`), kód még nincs. A teljes specifikáció, lábkiosztás, fázisos ütemterv és architektúra a tervben van — **bármilyen implementáció előtt olvasd el**.
+A **teljes szoftveres váz kész és zöldre fordul** (esp32s3). Mind a 16 komponens implementálva, az end-to-end flash-út be van kötve. A teljes spec/lábkiosztás/ütemterv a tervben: `reference/ESP32S3_SWD_PROG_Plan.md` — **implementáció előtt olvasd el**.
+
+Kész és fordul: `swd_phy`, `adiv5`, `cortexm_debug`, `flm_runner`, `flm_blobs` (üres tábla), `target_db` (42 STM32 tag), `prog_session` (end-to-end), `storage_lfs`, `display_oled`, `input_enc`, `ui`, `target_serial`, `target_state`, `net_wifi`, `web_ui`, `ftp_srv`. Tool: `tools/flm_extract.py`.
+
+**Hátralévő — fizikai eszközt vagy adatot igényel, szoftveresen nem zárható le:**
+- **Vendored `.FLM`**: a `flm_packs/` üres → `flm_blobs` tábla 0 elemű → a flash `ESP_ERR_NOT_SUPPORTED` ("nincs FLM")-ig jut. ST DFP `.FLM`-eket kell betenni, a CMake `add_custom_command` bekötése (`flm_blobs.c` kommentben vázolva) aktiválandó.
+- **HW-validáció**: az SWD/FLM mag valódi STM32-n (F411 ajánlott) + logikai analizátorral (DPIDR/IDCODE, A0–A5 kész-kritériumok).
+- **Finomítás**: target_db néhány flash-size reg címe "TODO ellenőrizni"; web auth (Basic/token) AP-módra; multi-család teszt (C1); RDP/hibakódok (C2).
 
 ## Architektúra elve (KRITIKUS, ne sértsd meg)
 

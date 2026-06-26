@@ -26,6 +26,7 @@
 #include "display_oled.h"
 #include "input_enc.h"
 #include "storage_lfs.h"
+#include "prog_session.h"   /* SWD flash orchestráció (prog_session_flash_file) */
 
 #include "esp_log.h"
 
@@ -191,8 +192,94 @@ static void draw_fwsel(void)
     ui_draw_header("Program firmware");
     display_oled_text(2, 18, "Selected:", 1);
     display_oled_text(2, 30, s_sel_name, 1);
-    display_oled_text(2, 46, "Flash: TODO", 1);
+    display_oled_text(2, 46, "OK=flash", 1);   /* BTN_SHORT -> flash indul */
     display_oled_flush();
+}
+
+/* ---------------------------------------------------------------------- */
+/* Flash progress — prog_session callback + indító (terv 8/15)            */
+/* ---------------------------------------------------------------------- */
+
+/* prog_phase_t -> rövid magyar fázis-címke a progress-képernyőhöz. */
+static const char *phase_label(prog_phase_t p)
+{
+    switch (p) {
+    case PROG_CONNECT: return "Connect";
+    case PROG_ERASE:   return "Torles";
+    case PROG_PROGRAM: return "Iras";
+    case PROG_VERIFY:  return "Ellenor.";
+    case PROG_DONE:    return "KESZ";
+    case PROG_FAILED:  return "HIBA";
+    default:           return "...";
+    }
+}
+
+/* prog_session progress callback: a flash-elő (itt: ui_task) kontextusából
+   hívódik minden fázis-/százalék-váltáskor. Egy teljes képernyőt rajzol:
+   fázis-címke (fejléc), target_name és egy százalékos progress-bar.
+   Minden hívásnál clear -> rajz -> flush (terv 15.1). */
+static void ui_flash_cb(const prog_status_t *st, void *ctx)
+{
+    (void)ctx;
+    if (!st) return;
+
+    /* Százalék 0..100 közé szorítva (defenzív a bar-rajzhoz). */
+    int pct = st->percent;
+    if (pct < 0)   pct = 0;
+    if (pct > 100) pct = 100;
+
+    display_oled_clear();
+    ui_draw_header(phase_label(st->phase));
+
+    /* Cél neve (vagy "?"), illetve a százalék szám szövegként. */
+    display_oled_text(2, 18, st->target_name[0] ? st->target_name : "?", 1);
+
+    char pbuf[8];
+    snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
+    display_oled_text(2, 30, pbuf, 1);
+
+    /* Progress-bar: 1px keret + belső kitöltés a százalék arányában. */
+    const uint8_t bx = 2, by = 44, bw = OLED_W - 4, bh = 12;
+    display_oled_rect(bx, by, bw, bh);
+    int fill = ((bw - 2) * pct) / 100;
+    if (fill > 0) {
+        display_oled_fill_rect(bx + 1, by + 1, (uint8_t)fill, bh - 2, true);
+    }
+
+    display_oled_flush();
+}
+
+/* A kiválasztott fw szinkron flash-elése a ui_task kontextusából. A flash
+   ideje alatt a UI nem dolgoz fel bevitelt (a prog_session szinkron) — ez
+   flash közben elfogadható. A végén egy eredmény-képernyőt mutat, és egy
+   gombnyomásig blokkol, majd a hívó visszaviszi a menübe. */
+static void ui_start_flash(void)
+{
+    char fw_path[64];
+    snprintf(fw_path, sizeof(fw_path), STORAGE_LFS_BASE "/fw/%s", s_sel_name);
+
+    ESP_LOGI(TAG, "flash indul: %s", fw_path);
+    esp_err_t err = prog_session_flash_file(fw_path, 0, ui_flash_cb, NULL);
+
+    /* Eredmény-képernyő: OK -> "KESZ", hiba -> esp_err név (rövid). */
+    display_oled_clear();
+    if (err == ESP_OK) {
+        ui_draw_header("KESZ");
+        display_oled_text_center(28, "Flash OK", 1);
+        ESP_LOGI(TAG, "flash kesz: %s", fw_path);
+    } else {
+        ui_draw_header("HIBA");
+        display_oled_text_center(28, esp_err_to_name(err), 1);
+        ESP_LOGE(TAG, "flash hiba: %s", esp_err_to_name(err));
+    }
+    display_oled_text_center(50, "Nyomj gombot", 1);
+    display_oled_flush();
+
+    /* Várunk egy gombnyomásra (bármilyen enkóder-eseményt elnyelünk). */
+    enc_event_t ev;
+    while (input_enc_get(&ev, portMAX_DELAY)) {
+        if (ev == BTN_SHORT || ev == BTN_LONG) break;
+    }
 }
 
 /* A teljes aktuális képernyő kirajzolása az állapot alapján. */
@@ -293,8 +380,13 @@ static void ui_handle(enc_event_t ev)
 
     /* --- Kiválasztott fw megerősítő --- */
     case SCR_FWSEL:
-        if (ev == BTN_LONG || ev == BTN_SHORT) {
-            /* Vissza a fájllistához (a flashelés még nincs bekötve). */
+        if (ev == BTN_SHORT) {
+            /* Megerősítve: szinkron flash indítása a ui_task kontextusából.
+               A hívás a teljes folyamat alatt blokkol (progress a cb-ben). */
+            ui_start_flash();
+            s_screen = SCR_FWLIST;   /* végén vissza a fájllistához */
+        } else if (ev == BTN_LONG) {
+            /* Mégse: vissza a fájllistához flash nélkül. */
             s_screen = SCR_FWLIST;
         }
         break;
