@@ -63,13 +63,15 @@ _ST_SECTORS_OFF = 120             # a {num,size} csoportok kezdete
 _ST_MIN_SIZE = _ST_SECTORS_OFF + 8
 
 # ST belépési pont szimbólumok -> a flm_algo_t off_* mezője.
-# (Init/Write/SectorErase/Verify kötelező; MassErase opcionális — L0/L1 nem ad.)
+# Init/Write/SectorErase kötelező. MassErase opcionális (L0/L1 nem ad).
+# Verify opcionális: a flm_runner ST-ágon visszaolvasással (adiv5 + memcmp)
+# verifikál, így off_verify hiánya nem gond (pl. L011/L152MD+/L4Rx nem ad Verify-t).
 _ST_ENTRY_SYMBOLS = [
     ("Init", "off_init", True),
     ("Write", "off_st_write", True),
     ("SectorErase", "off_st_sector_erase", True),
     ("MassErase", "off_st_mass_erase", False),
-    ("Verify", "off_verify", True),
+    ("Verify", "off_verify", False),
 ]
 
 # ST timeoutok (ms) — fix, a StorageInfo nem tartalmazza.

@@ -19,3 +19,8 @@ idf_component_register(
         flm_runner
         flm_blobs
 )
+
+# LittleFS image generálás: a ../data fa tartalma a "storage" partícióra kerül
+# (lásd partitions.csv). A FLASH_IN_PROJECT miatt az "idf.py flash" automatikusan
+# felírja a képet. A függvényt a joltwallet/littlefs project_include.cmake adja.
+littlefs_create_partition_image(storage ../data FLASH_IN_PROJECT)

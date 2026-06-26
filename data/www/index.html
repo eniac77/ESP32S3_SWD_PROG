@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP32-S3 SWD Programozó</title>
+  <!-- Helyi CSS (nincs CDN, minden a LittleFS /www alól töltődik) -->
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">SWD</span>
+      <div>
+        <h1>ESP32-S3 SWD Programozó</h1>
+        <p class="subtitle">Web kezelőfelület &middot; LittleFS</p>
+      </div>
+    </div>
+    <div id="conn" class="conn-pill" data-state="off">
+      <span class="dot"></span><span id="connText">WS leválasztva</span>
+    </div>
+  </header>
+
+  <main class="grid">
+
+    <!-- Élő cél-állapot a /ws "state" üzenetekből -->
+    <section class="card span2">
+      <div class="card-head">
+        <h2>Élő cél-állapot</h2>
+        <span class="muted" id="stateAge">&mdash;</span>
+      </div>
+      <div class="state-grid">
+        <div class="kv"><span class="k">Cél jelen</span><span class="v" id="stTarget">&mdash;</span></div>
+        <div class="kv"><span class="k">Dev ID</span><span class="v" id="stDev">&mdash;</span></div>
+        <div class="kv"><span class="k">Cél neve</span><span class="v" id="stName">&mdash;</span></div>
+        <div class="kv"><span class="k">Soros kapcsolat</span><span class="v" id="stSerial">&mdash;</span></div>
+        <div class="kv"><span class="k">Üzemidő</span><span class="v" id="stUptime">&mdash;</span></div>
+        <div class="kv"><span class="k">Értékek</span><span class="v" id="stValues">&mdash;</span></div>
+      </div>
+      <details class="raw">
+        <summary>Nyers JSON</summary>
+        <pre id="stRaw">connecting...</pre>
+      </details>
+    </section>
+
+    <!-- Flash folyamat haladásjelző a /ws "prog" üzenetekből -->
+    <section class="card span2" id="progCard" hidden>
+      <div class="card-head">
+        <h2>Flash folyamat</h2>
+        <span class="badge" id="progPhase">&mdash;</span>
+      </div>
+      <div class="prog-meta">
+        <span id="progTarget" class="muted">&mdash;</span>
+        <span id="progMsg" class="muted"></span>
+      </div>
+      <div class="bar"><div class="bar-fill" id="progFill" style="width:0%"></div></div>
+      <div class="prog-foot"><span id="progPct">0%</span></div>
+    </section>
+
+    <!-- Firmware lista + feltöltés -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Firmware (/fw)</h2>
+        <button class="btn ghost" data-refresh="fw">Frissítés</button>
+      </div>
+
+      <div class="uploader">
+        <input type="file" id="fwFile" accept=".bin,.hex">
+        <button class="btn" id="fwUpload">Feltöltés</button>
+      </div>
+      <div class="upstatus" id="fwUpStatus"></div>
+
+      <ul class="filelist" id="fwList"><li class="empty">Betöltés…</li></ul>
+    </section>
+
+    <!-- Config lista + push/pull -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Config (/cfg)</h2>
+        <button class="btn ghost" data-refresh="cfg">Frissítés</button>
+      </div>
+
+      <div class="uploader">
+        <input type="file" id="cfgFile" accept=".cfg,.txt">
+        <button class="btn" id="cfgUpload">Feltöltés</button>
+      </div>
+      <div class="upstatus" id="cfgUpStatus"></div>
+
+      <ul class="filelist" id="cfgList"><li class="empty">Betöltés…</li></ul>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- Helyi JS (nincs külső függőség) -->
+  <script src="/app.js"></script>
+</body>
+</html>
