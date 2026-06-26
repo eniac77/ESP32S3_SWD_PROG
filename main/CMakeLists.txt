@@ -5,6 +5,7 @@ idf_component_register(
         storage_lfs
         display_oled
         input_enc
+        ui
         net_wifi
         web_ui
         ftp_srv

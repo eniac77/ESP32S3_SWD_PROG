@@ -24,6 +24,7 @@
 #include "cortexm_debug.h"
 #include "flm_runner.h"
 #include "flm_blobs.h"
+#include "ui.h"
 
 static const char *TAG = "main";
 
@@ -46,6 +47,7 @@ void app_main(void)
     /* Helyi UI */
     TRY(display_oled_init());
     TRY(input_enc_init());
+    TRY(ui_start());
 
     /* Cél-interfészek (külön lábakon) */
     TRY(swd_phy_init());
