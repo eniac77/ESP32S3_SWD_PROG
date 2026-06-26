@@ -1,0 +1,18 @@
+# --- Cél: ESP32-S3-N16R8 (16 MB flash, 8 MB octal PSRAM) ---
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash méret
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# Octal PSRAM (R8) — kötelező R8 modulhoz
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+# Egyedi partíciós tábla
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# FreeRTOS tick: 1 ms (UI/serial időzítéshez kényelmes)
+CONFIG_FREERTOS_HZ=1000

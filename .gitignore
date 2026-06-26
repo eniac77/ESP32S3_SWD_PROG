@@ -1,0 +1,23 @@
+# ESP-IDF build kimenet
+build/
+sdkconfig
+sdkconfig.old
+sdkconfig.ci
+
+# Managed components (idf.py add-dependency tölti)
+managed_components/
+dependencies.lock
+
+# Python
+__pycache__/
+*.pyc
+
+# Szerkesztők
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+Thumbs.db
+.DS_Store
