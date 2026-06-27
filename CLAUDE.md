@@ -31,7 +31,7 @@ Kész és fordul: `swd_phy`, `adiv5`, `cortexm_debug`, `flm_runner`, `flm_blobs`
 
 **Hátralévő — fizikai eszközt igényel, szoftveresen nem zárható le:**
 - **HW-validáció**: a SWD/FLM mag valódi STM32-n (F411/0x431 ajánlott) + logikai analizátorral (DPIDR/IDCODE; A0–A5 kész-kritériumok). Az ST `Init`/`Verify` visszatérési szemantikáját élesben kell igazolni.
-- **Finomítás**: target_db néhány flash-size reg címe "TODO ellenőrizni"; web auth (Basic/token) AP-módra; multi-család teszt (C1); RDP/hibakódok (C2).
+- **Finomítás (hátralévő)**: multi-család HW-teszt (C1); RDP-szint detektálás + részletes hibakódok (C2); opcionális „hardveres nRST, ha be van kötve" ág. **Kész:** F-size reg címek (RM-mel megerősítve), web token-auth (`WEB_UI_TOKEN`, default nyílt), UI „Cél info" detektáló (bring-up eszköz).
 
 ## Architektúra elve (KRITIKUS, ne sértsd meg)
 
