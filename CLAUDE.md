@@ -31,7 +31,8 @@ Kész és fordul: `swd_phy`, `adiv5`, `cortexm_debug`, `flm_runner`, `flm_blobs`
 
 **Hátralévő — fizikai eszközt igényel, szoftveresen nem zárható le:**
 - **HW-validáció**: a SWD/FLM mag valódi STM32-n (F411/0x431 ajánlott) + logikai analizátorral (DPIDR/IDCODE; A0–A5 kész-kritériumok). Az ST `Init`/`Verify` visszatérési szemantikáját élesben kell igazolni.
-- **Finomítás (hátralévő)**: multi-család HW-teszt (C1); RDP-szint detektálás + részletes hibakódok (C2); opcionális „hardveres nRST, ha be van kötve" ág. **Kész:** F-size reg címek (RM-mel megerősítve), web token-auth (`WEB_UI_TOKEN`, default nyílt), UI „Cél info" detektáló (bring-up eszköz).
+- **Kész (HW nélkül lezárható):** F-size reg címek (RM-mel), web token-auth (`WEB_UI_TOKEN`, default nyílt), UI „Cél info" detektáló, RDP-szint detektálás + hibakód-taxonómia (C2), opcionális hardveres nRST ág (`CONFIG_CORTEXM_HW_NRST`, default off), GitHub Actions CI (`.github/workflows/build.yml`: build + host tesztek).
+- **Hátralévő:** multi-család HW-teszt valódi célokon (C1); az L0/L1 RDP-regiszter címe még `RDP_REG_NONE` (ellenőrizni); minden „kész" funkció éles igazolása hardveren.
 
 ## Architektúra elve (KRITIKUS, ne sértsd meg)
 
