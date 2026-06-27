@@ -137,16 +137,24 @@ static uint32_t swd_read_raw(bool ap, uint32_t addr, uint32_t *data_out)
         swd_phy_seq_out(0, 1);               /* 1 órajel TRN */
 
         if (parity32(data) != par) {
-            ESP_LOGW(TAG, "olvasás paritáshiba (addr=0x%lx)", (unsigned long)addr);
+            ESP_LOGW(TAG, "olvasás paritáshiba (%s addr=0x%lx, adat=0x%08lx, vart par=%lu, kapott par=%lu)",
+                     ap ? "AP" : "DP", (unsigned long)addr, (unsigned long)data,
+                     (unsigned long)parity32(data), (unsigned long)par);
             return 0;                        /* paritáshiba -> protokollhiba */
         }
         if (data_out) *data_out = data;
+        ESP_LOGV(TAG, "raw RD  %s addr=0x%lx ACK=OK adat=0x%08lx",
+                 ap ? "AP" : "DP", (unsigned long)addr, (unsigned long)data);
         return ACK_OK;
     }
 
     /* WAIT/FAULT: nincs data fázis, de a turnaround vissza kell. */
     swd_phy_dir(true);
     swd_phy_seq_out(0, 1);                    /* 1 órajel TRN */
+    ESP_LOGV(TAG, "raw RD  %s addr=0x%lx ACK=%s (0x%lx)",
+             ap ? "AP" : "DP", (unsigned long)addr,
+             ack == ACK_WAIT ? "WAIT" : (ack == ACK_FAULT ? "FAULT" : "???"),
+             (unsigned long)ack);
     return ack;
 }
 
@@ -176,6 +184,13 @@ static uint32_t swd_write_raw(bool ap, uint32_t addr, uint32_t data)
     if (ack == ACK_OK) {
         swd_phy_seq_out(data, 32);
         swd_phy_seq_out(parity32(data), 1);
+        ESP_LOGV(TAG, "raw WR  %s addr=0x%lx ACK=OK adat=0x%08lx",
+                 ap ? "AP" : "DP", (unsigned long)addr, (unsigned long)data);
+    } else {
+        ESP_LOGV(TAG, "raw WR  %s addr=0x%lx ACK=%s (0x%lx) adat=0x%08lx",
+                 ap ? "AP" : "DP", (unsigned long)addr,
+                 ack == ACK_WAIT ? "WAIT" : (ack == ACK_FAULT ? "FAULT" : "???"),
+                 (unsigned long)ack, (unsigned long)data);
     }
     return ack;
 }
@@ -186,6 +201,7 @@ static uint32_t swd_write_raw(bool ap, uint32_t addr, uint32_t data)
 /* ===================================================================== */
 static void dp_abort_clear(void)
 {
+    ESP_LOGD(TAG, "ABORT: sticky hibák törlése (ABORT<-0x%02x)", ABORT_CLR_ALL);
     (void)swd_write_raw(/*ap=*/false, DP_ABORT, ABORT_CLR_ALL);
 }
 
@@ -196,12 +212,28 @@ static esp_err_t dp_read(uint32_t addr, uint32_t *val)
 {
     for (int i = 0; i < WAIT_RETRY_MAX; i++) {
         uint32_t ack = swd_read_raw(false, addr, val);
-        if (ack == ACK_OK)   return ESP_OK;
-        if (ack == ACK_WAIT) continue;                /* újrapróba */
-        if (ack == ACK_FAULT) { dp_abort_clear(); return ESP_FAIL; }
+        if (ack == ACK_OK) {
+            ESP_LOGV(TAG, "DP RD  addr=0x%lx -> 0x%08lx%s",
+                     (unsigned long)addr, (unsigned long)(val ? *val : 0),
+                     i ? " (WAIT-retry után)" : "");
+            return ESP_OK;
+        }
+        if (ack == ACK_WAIT) {
+            ESP_LOGV(TAG, "DP RD  addr=0x%lx WAIT retry #%d/%d",
+                     (unsigned long)addr, i + 1, WAIT_RETRY_MAX);
+            continue;                /* újrapróba */
+        }
+        if (ack == ACK_FAULT) {
+            ESP_LOGW(TAG, "DP RD  addr=0x%lx FAULT -> ABORT", (unsigned long)addr);
+            dp_abort_clear();
+            return ESP_FAIL;
+        }
+        ESP_LOGW(TAG, "DP RD  addr=0x%lx ismeretlen/protokollhiba (ACK=0x%lx)",
+                 (unsigned long)addr, (unsigned long)ack);
         return ESP_ERR_INVALID_RESPONSE;              /* 0/ismeretlen ACK */
     }
-    ESP_LOGW(TAG, "DP olvasás: tartós WAIT (addr=0x%lx)", (unsigned long)addr);
+    ESP_LOGW(TAG, "DP olvasás: tartós WAIT (addr=0x%lx, %d retry kimerült)",
+             (unsigned long)addr, WAIT_RETRY_MAX);
     return ESP_ERR_TIMEOUT;
 }
 
@@ -209,12 +241,28 @@ static esp_err_t dp_write(uint32_t addr, uint32_t val)
 {
     for (int i = 0; i < WAIT_RETRY_MAX; i++) {
         uint32_t ack = swd_write_raw(false, addr, val);
-        if (ack == ACK_OK)   return ESP_OK;
-        if (ack == ACK_WAIT) continue;
-        if (ack == ACK_FAULT) { dp_abort_clear(); return ESP_FAIL; }
+        if (ack == ACK_OK) {
+            ESP_LOGV(TAG, "DP WR  addr=0x%lx <- 0x%08lx%s",
+                     (unsigned long)addr, (unsigned long)val,
+                     i ? " (WAIT-retry után)" : "");
+            return ESP_OK;
+        }
+        if (ack == ACK_WAIT) {
+            ESP_LOGV(TAG, "DP WR  addr=0x%lx WAIT retry #%d/%d",
+                     (unsigned long)addr, i + 1, WAIT_RETRY_MAX);
+            continue;
+        }
+        if (ack == ACK_FAULT) {
+            ESP_LOGW(TAG, "DP WR  addr=0x%lx FAULT -> ABORT", (unsigned long)addr);
+            dp_abort_clear();
+            return ESP_FAIL;
+        }
+        ESP_LOGW(TAG, "DP WR  addr=0x%lx ismeretlen/protokollhiba (ACK=0x%lx)",
+                 (unsigned long)addr, (unsigned long)ack);
         return ESP_ERR_INVALID_RESPONSE;
     }
-    ESP_LOGW(TAG, "DP írás: tartós WAIT (addr=0x%lx)", (unsigned long)addr);
+    ESP_LOGW(TAG, "DP írás: tartós WAIT (addr=0x%lx, %d retry kimerült)",
+             (unsigned long)addr, WAIT_RETRY_MAX);
     return ESP_ERR_TIMEOUT;
 }
 
@@ -228,6 +276,9 @@ static esp_err_t dp_select(uint32_t apbanksel, uint32_t dpbanksel)
     uint32_t sel = ((apbanksel & 0xFu) << 4) | (dpbanksel & 0xFu);
     if (s_select_valid && sel == s_select_shadow) return ESP_OK;
 
+    ESP_LOGV(TAG, "SELECT írás 0x%08lx (APBANKSEL=0x%lx, DPBANKSEL=0x%lx)",
+             (unsigned long)sel, (unsigned long)(apbanksel & 0xFu),
+             (unsigned long)(dpbanksel & 0xFu));
     esp_err_t err = dp_write(DP_SELECT, sel);
     if (err == ESP_OK) {
         s_select_shadow = sel;
@@ -254,11 +305,27 @@ static esp_err_t ap_read_posted(uint32_t ap_off, uint32_t *prev_val)
 
     for (int i = 0; i < WAIT_RETRY_MAX; i++) {
         uint32_t ack = swd_read_raw(/*ap=*/true, ap_off & 0xCu, prev_val);
-        if (ack == ACK_OK)   return ESP_OK;
-        if (ack == ACK_WAIT) continue;
-        if (ack == ACK_FAULT) { dp_abort_clear(); return ESP_FAIL; }
+        if (ack == ACK_OK) {
+            ESP_LOGV(TAG, "AP RD (posted) off=0x%02lx -> prev=0x%08lx%s",
+                     (unsigned long)ap_off, (unsigned long)(prev_val ? *prev_val : 0),
+                     i ? " (WAIT-retry után)" : "");
+            return ESP_OK;
+        }
+        if (ack == ACK_WAIT) {
+            ESP_LOGV(TAG, "AP RD off=0x%02lx WAIT retry #%d/%d",
+                     (unsigned long)ap_off, i + 1, WAIT_RETRY_MAX);
+            continue;
+        }
+        if (ack == ACK_FAULT) {
+            ESP_LOGW(TAG, "AP RD off=0x%02lx FAULT -> ABORT", (unsigned long)ap_off);
+            dp_abort_clear();
+            return ESP_FAIL;
+        }
+        ESP_LOGW(TAG, "AP RD off=0x%02lx ismeretlen/protokollhiba (ACK=0x%lx)",
+                 (unsigned long)ap_off, (unsigned long)ack);
         return ESP_ERR_INVALID_RESPONSE;
     }
+    ESP_LOGW(TAG, "AP olvasás: tartós WAIT (off=0x%02lx)", (unsigned long)ap_off);
     return ESP_ERR_TIMEOUT;
 }
 
@@ -269,11 +336,27 @@ static esp_err_t ap_write(uint32_t ap_off, uint32_t val)
 
     for (int i = 0; i < WAIT_RETRY_MAX; i++) {
         uint32_t ack = swd_write_raw(/*ap=*/true, ap_off & 0xCu, val);
-        if (ack == ACK_OK)   return ESP_OK;
-        if (ack == ACK_WAIT) continue;
-        if (ack == ACK_FAULT) { dp_abort_clear(); return ESP_FAIL; }
+        if (ack == ACK_OK) {
+            ESP_LOGV(TAG, "AP WR off=0x%02lx <- 0x%08lx%s",
+                     (unsigned long)ap_off, (unsigned long)val,
+                     i ? " (WAIT-retry után)" : "");
+            return ESP_OK;
+        }
+        if (ack == ACK_WAIT) {
+            ESP_LOGV(TAG, "AP WR off=0x%02lx WAIT retry #%d/%d",
+                     (unsigned long)ap_off, i + 1, WAIT_RETRY_MAX);
+            continue;
+        }
+        if (ack == ACK_FAULT) {
+            ESP_LOGW(TAG, "AP WR off=0x%02lx FAULT -> ABORT", (unsigned long)ap_off);
+            dp_abort_clear();
+            return ESP_FAIL;
+        }
+        ESP_LOGW(TAG, "AP WR off=0x%02lx ismeretlen/protokollhiba (ACK=0x%lx)",
+                 (unsigned long)ap_off, (unsigned long)ack);
         return ESP_ERR_INVALID_RESPONSE;
     }
+    ESP_LOGW(TAG, "AP írás: tartós WAIT (off=0x%02lx)", (unsigned long)ap_off);
     return ESP_ERR_TIMEOUT;
 }
 
@@ -300,6 +383,7 @@ static esp_err_t ahb_csw_init(void)
 
     /* Méret és inkremens mezők törlése, majd beállítás. A többi (Prot,
        SPIDEN, DbgSwEnable, MasterType stb.) reset-default bitet megtartjuk. */
+    ESP_LOGV(TAG, "AHB-AP CSW kiindulás (reset-default) = 0x%08lx", (unsigned long)csw);
     csw &= ~(CSW_SIZE_MASK | CSW_ADDRINC_MASK);
     csw |= CSW_SIZE_WORD | CSW_ADDRINC_SINGLE;
 
@@ -307,6 +391,8 @@ static esp_err_t ahb_csw_init(void)
     if (err != ESP_OK) return err;
 
     s_csw_base = csw;
+    ESP_LOGD(TAG, "AHB-AP CSW beállítva (Word + AddrInc Single) = 0x%08lx",
+             (unsigned long)csw);
     return ESP_OK;
 }
 
@@ -336,12 +422,14 @@ esp_err_t adiv5_init(void)
     }
     /* Bring-up alatt lassú órajel ajánlott (terv 5. szekció). */
     swd_phy_set_freq_hz(300000);
+    ESP_LOGI(TAG, "adiv5_init OK, SWD órajel = 300 kHz (bring-up)");
     return ESP_OK;
 }
 
 /* Line reset: legalább 50 órajel SWDIO=1-en tartva. */
 static void line_reset(void)
 {
+    ESP_LOGD(TAG, "line reset (>=50 SWCLK, SWDIO=1)");
     swd_phy_dir(true);
     swd_phy_idle(56);   /* >= 50 órajel SWDIO=1 */
 }
@@ -351,11 +439,14 @@ esp_err_t adiv5_connect(uint32_t *idcode_out)
     s_select_valid = false;
     s_csw_base = 0;
 
+    ESP_LOGD(TAG, "SWD bring-up indul");
+
     /* 1) Line reset */
     line_reset();
 
     /* 2) JTAG-to-SWD switch: 0xE79E, LSB-first 16 bit.
        A vezetéken így 0x9E, 0xE7 jelenik meg (a seq_out LSB-first küld). */
+    ESP_LOGD(TAG, "JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)");
     swd_phy_dir(true);
     swd_phy_seq_out(0xE79E, 16);
 
@@ -363,10 +454,12 @@ esp_err_t adiv5_connect(uint32_t *idcode_out)
     line_reset();
 
     /* Néhány idle bit a switch után, az első tranzakció előtt. */
+    ESP_LOGV(TAG, "8 idle bit a switch után");
     swd_phy_dir(true);
     swd_phy_seq_out(0, 8);
 
     /* 4) DPIDR olvasás (DP 0x0) — első érvényes tranzakció. */
+    ESP_LOGD(TAG, "DPIDR olvasás (első érvényes tranzakció)");
     uint32_t dpidr = 0;
     esp_err_t err = dp_read(DP_DPIDR, &dpidr);
     if (err != ESP_OK) {
@@ -377,6 +470,7 @@ esp_err_t adiv5_connect(uint32_t *idcode_out)
     if (idcode_out) *idcode_out = dpidr;
 
     /* 5) SELECT nullázás (AP0, bank0) — ismert kiindulás. */
+    ESP_LOGD(TAG, "SELECT nullázás (AP0, bank0)");
     err = dp_select(0, 0);
     if (err != ESP_OK) return err;
 
@@ -384,6 +478,7 @@ esp_err_t adiv5_connect(uint32_t *idcode_out)
     dp_abort_clear();
 
     /* 7) Debug + rendszer power-up kérése. */
+    ESP_LOGD(TAG, "CTRL/STAT power-up kérés (CDBGPWRUPREQ | CSYSPWRUPREQ)");
     err = dp_write(DP_CTRLSTAT, CDBGPWRUPREQ | CSYSPWRUPREQ);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "CTRL/STAT power-up írás hiba: %s", esp_err_to_name(err));
@@ -391,6 +486,7 @@ esp_err_t adiv5_connect(uint32_t *idcode_out)
     }
 
     /* 8) Várakozás az ACK bitekre (CDBGPWRUPACK + CSYSPWRUPACK). */
+    ESP_LOGD(TAG, "várakozás CDBGPWRUPACK + CSYSPWRUPACK bitekre");
     int64_t t0 = esp_timer_get_time();
     uint32_t stat = 0;
     for (;;) {
@@ -404,9 +500,11 @@ esp_err_t adiv5_connect(uint32_t *idcode_out)
             return ESP_ERR_TIMEOUT;
         }
     }
-    ESP_LOGI(TAG, "debug power-up OK (CTRL/STAT=0x%08lx)", (unsigned long)stat);
+    ESP_LOGI(TAG, "debug power-up OK (CTRL/STAT=0x%08lx, CDBGPWRUPACK+CSYSPWRUPACK megérkezett, %lld us)",
+             (unsigned long)stat, (long long)(esp_timer_get_time() - t0));
 
     /* 9) AHB-AP CSW alapállapot (Word + AddrInc Single, RMW). */
+    ESP_LOGD(TAG, "AHB-AP CSW alapállapot beállítása");
     err = ahb_csw_init();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "AHB-AP CSW init hiba: %s", esp_err_to_name(err));
@@ -419,6 +517,7 @@ esp_err_t adiv5_connect(uint32_t *idcode_out)
         ESP_LOGI(TAG, "AHB-AP IDR = 0x%08lx", (unsigned long)idr);
     }
 
+    ESP_LOGI(TAG, "SWD bring-up KÉSZ (DPIDR=0x%08lx)", (unsigned long)dpidr);
     return ESP_OK;
 }
 
@@ -430,7 +529,13 @@ esp_err_t adiv5_read32(uint32_t addr, uint32_t *val)
     if (err != ESP_OK) return err;
 
     /* DRW olvasás posted -> a tényleges adat RDBUFF-ból (ap_read kezeli). */
-    return ap_read(AP_DRW, val);
+    err = ap_read(AP_DRW, val);
+    if (err == ESP_OK) {
+        ESP_LOGV(TAG, "rd32 0x%08lx -> 0x%08lx", (unsigned long)addr, (unsigned long)*val);
+    } else {
+        ESP_LOGW(TAG, "rd32 0x%08lx hiba: %s", (unsigned long)addr, esp_err_to_name(err));
+    }
+    return err;
 }
 
 esp_err_t adiv5_write32(uint32_t addr, uint32_t val)
@@ -438,7 +543,14 @@ esp_err_t adiv5_write32(uint32_t addr, uint32_t val)
     esp_err_t err = ap_write(AP_TAR, addr);
     if (err != ESP_OK) return err;
 
-    return ap_write(AP_DRW, val);
+    err = ap_write(AP_DRW, val);
+    if (err == ESP_OK) {
+        ESP_LOGV(TAG, "wr32 0x%08lx <- 0x%08lx", (unsigned long)addr, (unsigned long)val);
+    } else {
+        ESP_LOGW(TAG, "wr32 0x%08lx <- 0x%08lx hiba: %s",
+                 (unsigned long)addr, (unsigned long)val, esp_err_to_name(err));
+    }
+    return err;
 }
 
 /* ===================================================================== */
@@ -451,6 +563,9 @@ esp_err_t adiv5_read_block(uint32_t addr, uint32_t *buf, size_t words)
 {
     if (!buf) return ESP_ERR_INVALID_ARG;
     if (words == 0) return ESP_OK;
+
+    ESP_LOGD(TAG, "block RD  addr=0x%08lx, %u szó (%u bájt)",
+             (unsigned long)addr, (unsigned)words, (unsigned)(words * 4));
 
     esp_err_t err = ahb_set_addrinc_single();
     if (err != ESP_OK) return err;
@@ -496,6 +611,9 @@ esp_err_t adiv5_write_block(uint32_t addr, const uint32_t *buf, size_t words)
 {
     if (!buf) return ESP_ERR_INVALID_ARG;
     if (words == 0) return ESP_OK;
+
+    ESP_LOGD(TAG, "block WR  addr=0x%08lx, %u szó (%u bájt)",
+             (unsigned long)addr, (unsigned)words, (unsigned)(words * 4));
 
     esp_err_t err = ahb_set_addrinc_single();
     if (err != ESP_OK) return err;

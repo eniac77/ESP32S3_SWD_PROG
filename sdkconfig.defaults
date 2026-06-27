@@ -19,3 +19,8 @@ CONFIG_FREERTOS_HZ=1000
 
 # HTTP szerver WebSocket támogatás (web_ui /ws élő adat + progress)
 CONFIG_HTTPD_WS_SUPPORT=y
+
+# Naplózás: VERBOSE szint befordítva, alap szint DEBUG (a SWD/FLM tag-ek
+# VERBOSE-ra emelve futásidőben a main-ben). Teljes UART-konzol napló.
+CONFIG_LOG_DEFAULT_LEVEL_DEBUG=y
+CONFIG_LOG_MAXIMUM_LEVEL_VERBOSE=y

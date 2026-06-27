@@ -76,12 +76,19 @@ static const target_info_t *detect_target(prog_status_t *st)
 {
     size_t n = 0;
     const uint32_t *addrs = target_db_idcode_addrs(&n);
+    ESP_LOGD(TAG, "detektálás: %u IDCODE-cím próbálása", (unsigned)n);
 
     for (size_t i = 0; i < n; i++) {
         uint32_t val = 0;
-        if (adiv5_read32(addrs[i], &val) != ESP_OK) continue;
+        if (adiv5_read32(addrs[i], &val) != ESP_OK) {
+            ESP_LOGD(TAG, "IDCODE @ 0x%08lx -> olvasási hiba",
+                     (unsigned long)addrs[i]);
+            continue;
+        }
 
         uint16_t dev_id = (uint16_t)(val & 0x0FFF);
+        ESP_LOGD(TAG, "IDCODE @ 0x%08lx -> raw=0x%08lx dev_id=0x%03X",
+                 (unsigned long)addrs[i], (unsigned long)val, (unsigned)dev_id);
         if (dev_id == 0) continue;
 
         const target_info_t *info = target_db_lookup(dev_id);
@@ -89,13 +96,17 @@ static const target_info_t *detect_target(prog_status_t *st)
             st->dev_id = dev_id;
             strncpy(st->target_name, info->name, sizeof(st->target_name) - 1);
             st->target_name[sizeof(st->target_name) - 1] = '\0';
+            ESP_LOGI(TAG, "cél azonosítva: DEV_ID=0x%03X (%s) @ IDCODE 0x%08lx",
+                     (unsigned)dev_id, info->name, (unsigned long)addrs[i]);
             return info;
         }
         /* talált DEV_ID-t, de nincs a táblában — jegyezzük fel */
+        ESP_LOGW(TAG, "DEV_ID=0x%03X nincs a target_db-ben", (unsigned)dev_id);
         st->dev_id = dev_id;
         strncpy(st->target_name, "?", sizeof(st->target_name) - 1);
         st->target_name[sizeof(st->target_name) - 1] = '\0';
     }
+    ESP_LOGW(TAG, "detektálás sikertelen: nincs ismert DEV_ID");
     return NULL;
 }
 
@@ -103,8 +114,15 @@ static const target_info_t *detect_target(prog_status_t *st)
 static uint32_t read_flash_size(const target_info_t *info)
 {
     uint32_t v = 0;
-    if (adiv5_read32(info->flash_size_addr, &v) != ESP_OK) return 0;
+    if (adiv5_read32(info->flash_size_addr, &v) != ESP_OK) {
+        ESP_LOGW(TAG, "flash méret olvasás hiba @ F-size reg 0x%08lx",
+                 (unsigned long)info->flash_size_addr);
+        return 0;
+    }
     uint32_t kb = v & 0xFFFF;
+    ESP_LOGD(TAG, "F-size reg 0x%08lx -> raw=0x%08lx -> %lu KB",
+             (unsigned long)info->flash_size_addr, (unsigned long)v,
+             (unsigned long)kb);
     return kb * 1024u;
 }
 
@@ -114,13 +132,18 @@ static uint32_t read_flash_size(const target_info_t *info)
 static int read_rdp_level(const target_info_t *info)
 {
     if (!info || info->rdp_kind == RDP_REG_NONE) {
+        ESP_LOGD(TAG, "RDP: nincs RDP regiszter a leíróban");
         return -1;
     }
     uint32_t reg = 0;
     if (adiv5_read32(info->rdp_addr, &reg) != ESP_OK) {
+        ESP_LOGW(TAG, "RDP olvasás hiba @ 0x%08lx", (unsigned long)info->rdp_addr);
         return -1;
     }
-    return target_db_rdp_level(info, reg);
+    int lvl = target_db_rdp_level(info, reg);
+    ESP_LOGD(TAG, "RDP reg 0x%08lx -> raw=0x%08lx -> szint=%d",
+             (unsigned long)info->rdp_addr, (unsigned long)reg, lvl);
+    return lvl;
 }
 
 /* ---- publikus API ----------------------------------------------------- */
@@ -167,23 +190,31 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     size_t    len  = 0;
     esp_err_t err  = ESP_OK;
 
+    ESP_LOGI(TAG, "flash indul: fájl='%s' base=0x%08lx",
+             fw_path ? fw_path : "(nincs)", (unsigned long)base_addr);
+
     /* 2. CONNECT fázis: fájl beolvasása LittleFS-ből. */
     emit(cb, ctx, &st, PROG_CONNECT, 0, "fajl olvasas");
     err = storage_lfs_read_all(fw_path, &data, &len);
     if (err != ESP_OK || !data || len == 0) {
+        ESP_LOGE(TAG, "fájl olvasás hiba: '%s' err=%d len=%u",
+                 fw_path ? fw_path : "(nincs)", err, (unsigned)len);
         emit(cb, ctx, &st, PROG_FAILED, 0, "fajl olvasas hiba");
         err = (err == ESP_OK) ? ESP_FAIL : err;
         goto out;
     }
+    ESP_LOGI(TAG, "fajl betoltve %u B (%s)", (unsigned)len, fw_path);
 
     /* 3. Connect-under-reset. */
     emit(cb, ctx, &st, PROG_CONNECT, 0, "connect");
     uint32_t dp_idcode = 0;
     err = cortexm_connect_under_reset(&dp_idcode);
     if (err != ESP_OK) {
+        ESP_LOGE(TAG, "connect-under-reset hiba: err=%d (nincs cél?)", err);
         emit(cb, ctx, &st, PROG_FAILED, 0, "nincs cel / connect");
         goto out;
     }
+    ESP_LOGI(TAG, "connect OK: DP IDCODE=0x%08lx", (unsigned long)dp_idcode);
 
     /* 4. Cél detektálás (DEV_ID). */
     const target_info_t *info = detect_target(&st);
@@ -193,8 +224,10 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
         char msg[64];
         if (st.dev_id != 0) {
             snprintf(msg, sizeof(msg), "ismeretlen DEV_ID 0x%03X", (unsigned)st.dev_id);
+            ESP_LOGE(TAG, "ismeretlen DEV_ID 0x%03X (nincs leíró)", (unsigned)st.dev_id);
         } else {
             snprintf(msg, sizeof(msg), "ismeretlen cel (nincs DEV_ID)");
+            ESP_LOGE(TAG, "ismeretlen cél: nem jött érvényes DEV_ID");
         }
         emit(cb, ctx, &st, PROG_FAILED, 0, msg);
         err = ESP_ERR_NOT_FOUND;
@@ -207,35 +240,49 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     {
         int rdp = read_rdp_level(info);
         if (rdp >= 2) {
+            ESP_LOGE(TAG, "RDP2: végleges zár -> programozás megszakítva");
             emit(cb, ctx, &st, PROG_FAILED, 0, "RDP2: vegleges zar");
             err = ESP_ERR_INVALID_STATE;
             goto out;
         }
         if (rdp == 1) {
+            ESP_LOGE(TAG, "RDP1: mass-erase szükséges -> programozás megszakítva");
             emit(cb, ctx, &st, PROG_FAILED, 0, "RDP1: mass-erase szukseges");
             err = ESP_ERR_INVALID_STATE;
             goto out;
         }
         /* rdp == 0 (vedtelen) vagy rdp < 0 (NONE / nem olvasható) -> folytatjuk. */
+        ESP_LOGI(TAG, "RDP szint=%d -> folytatás engedélyezve", rdp);
     }
 
     /* 5. Flash méret. */
     uint32_t flash_size = read_flash_size(info);
+    ESP_LOGI(TAG, "DEV_ID=0x%03X (%s), flash=%lu KB",
+             (unsigned)st.dev_id, info->name,
+             (unsigned long)(flash_size / 1024u));
 
     /* 6. FLM kiválasztás — üres flm_blobs táblánál NULL a normális. */
     const flm_algo_t *algo = target_db_select_flm(info, flash_size);
     if (!algo) {
+        ESP_LOGE(TAG, "nincs FLM a DEV_ID=0x%03X (%s) célhoz",
+                 (unsigned)st.dev_id, info->name);
         emit(cb, ctx, &st, PROG_FAILED, 0, "nincs FLM");
         err = ESP_ERR_NOT_SUPPORTED;
         goto out;
     }
+    ESP_LOGI(TAG, "kiválasztott FLM: '%s' (abi=%s)",
+             algo->name ? algo->name : "(nincs)",
+             (algo->abi == FLM_ABI_ST) ? "ST" : "CMSIS");
 
     /* 7. Bázis cím: explicit, különben az FLM leíró dev_addr-ja. */
     uint32_t base = base_addr ? base_addr : algo->dev_addr;
+    ESP_LOGI(TAG, "flash bázis cím: 0x%08lx", (unsigned long)base);
 
     /* 8. FLM betöltés + program (erase/program/verify) progress-híddal. */
+    ESP_LOGI(TAG, "FLM betöltése a cél RAM-jába");
     err = flm_runner_load(algo);
     if (err != ESP_OK) {
+        ESP_LOGE(TAG, "FLM betöltés/Init hiba: err=%d", err);
         emit(cb, ctx, &st, PROG_FAILED, 0, "Init hiba");
         goto out;
     }
@@ -256,14 +303,20 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
         if      (st.phase == PROG_ERASE)  fmsg = "Erase hiba";
         else if (st.phase == PROG_VERIFY) fmsg = "Verify hiba";
         else if (st.phase == PROG_PROGRAM)fmsg = "Program hiba";
+        ESP_LOGE(TAG, "%s: err=%d (fázis=%d, %d%%)",
+                 fmsg, err, (int)st.phase, st.percent);
         emit(cb, ctx, &st, PROG_FAILED, st.percent, fmsg);
         goto out;
     }
 
     /* 9. Siker: reset & run, majd DONE 100%. */
+    ESP_LOGI(TAG, "programozás sikeres -> reset & run");
     cortexm_sysreset();
     cortexm_resume();
     emit(cb, ctx, &st, PROG_DONE, 100, "kesz");
+    ESP_LOGI(TAG, "flash KÉSZ: DEV_ID=0x%03X (%s) 0x%08lx +%u B",
+             (unsigned)st.dev_id, st.target_name,
+             (unsigned long)base, (unsigned)len);
     err = ESP_OK;
 
 out:
@@ -285,18 +338,24 @@ esp_err_t prog_session_detect(prog_status_t *out)
     st.target_name[1] = '\0';
     esp_err_t err = ESP_OK;
 
+    ESP_LOGI(TAG, "detektálás indul");
+
     /* Connect-under-reset. */
     uint32_t dp_idcode = 0;
     err = cortexm_connect_under_reset(&dp_idcode);
     if (err != ESP_OK) {
+        ESP_LOGE(TAG, "connect-under-reset hiba: err=%d (nincs cél?)", err);
         st.phase = PROG_FAILED;
         strncpy(st.message, "nincs cel / connect", sizeof(st.message) - 1);
         goto finish;
     }
+    ESP_LOGI(TAG, "connect OK: DP IDCODE=0x%08lx", (unsigned long)dp_idcode);
 
     /* Detektálás + flash méret. */
     const target_info_t *info = detect_target(&st);
     if (!info) {
+        ESP_LOGE(TAG, "detektálás sikertelen: ismeretlen cél (dev_id=0x%03X)",
+                 (unsigned)st.dev_id);
         st.phase = PROG_FAILED;
         strncpy(st.message, "ismeretlen cel", sizeof(st.message) - 1);
         err = ESP_ERR_NOT_FOUND;
@@ -313,11 +372,17 @@ esp_err_t prog_session_detect(prog_status_t *out)
     else if (rdp == 1) rdp_str = "RDP1";
     else if (rdp == 2) rdp_str = "RDP2";
     /* rdp < 0 (NONE / olvasási hiba) esetén "RDP?" marad. */
+    if (rdp >= 1) {
+        ESP_LOGW(TAG, "RDP védelem aktív: %s", rdp_str);
+    }
 
     snprintf(st.message, sizeof(st.message), "%s, %u KB, %s",
              info->name, (unsigned)(flash_size / 1024u), rdp_str);
     st.phase   = PROG_DONE;
     st.percent = 100;
+    ESP_LOGI(TAG, "detektálás kész: DEV_ID=0x%03X (%s), flash=%lu KB, %s",
+             (unsigned)st.dev_id, info->name,
+             (unsigned long)(flash_size / 1024u), rdp_str);
 
 finish:
     /* Nyugalmi állapot: reset elengedve, cél fut. */

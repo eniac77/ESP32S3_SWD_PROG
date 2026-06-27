@@ -112,6 +112,8 @@ idf.py -p <PORT> flash monitor
 idf.py add-dependency "joltwallet/littlefs"
 ```
 
+**Teljes naplózás (UART-konzol):** alap szint DEBUG, VERBOSE befordítva; a `main` a SWD/FLM tag-eket (`swd_phy/adiv5/cortexm/flm_runner/prog_session/...`) VERBOSE-ra emeli. Boot-banner + rendszer-infó + **boot-idői SWD önteszt** (`CONFIG_BRINGUP_SELFTEST=y`): induláskor detektálja a célt és kiírja DPIDR/DEV_ID/flash/RDP. Periodikus ismétlés: `CONFIG_BRINGUP_SELFTEST_PERIODIC`. A teljes folyamat `idf.py monitor`-ban követhető.
+
 **Build-környezeti buktatók (megtapasztalt):**
 - Az IDF tools eredetileg csak riscv targetre volt telepítve → az `export.ps1` nem tette az xtensa fordítót a PATH-ra ("Did not find file Compiler/-ASM"). Megoldás: egyszer lefuttatva `install.ps1 esp32s3`, utána jó.
 - `partitions.csv`: **ne legyen sor végi `# komment`** az adatsorok után — a 6. oszlopot flag-nek veszi. A komment külön sorba kerüljön.

@@ -103,10 +103,21 @@ esp_err_t flm_runner_load(const flm_algo_t *algo)
     uint32_t buf_size = ALIGN8(page);
     if (buf_size > BUFFER_MAX) buf_size = BUFFER_MAX;
 
+    /* --- algo-leíró összegzése (név/abi/eszköz-tartomány/page) --- */
+    ESP_LOGI(TAG, "FLM betöltés: algo='%s' abi=%s dev=0x%08lx +%lu KB page=%lu B",
+             algo->name ? algo->name : "(nincs)",
+             (algo->abi == FLM_ABI_ST) ? "ST" : "CMSIS",
+             (unsigned long)algo->dev_addr,
+             (unsigned long)(algo->dev_size / 1024u),
+             (unsigned long)(algo->page_size ? algo->page_size : 256u));
+
     ESP_LOGI(TAG, "RAM layout: load=0x%08lx end=0x%08lx bkpt=0x%08lx sp=0x%08lx buf=0x%08lx(%lu)",
              (unsigned long)load_addr, (unsigned long)image_end,
              (unsigned long)bkpt_addr, (unsigned long)stack_top,
              (unsigned long)buf_addr, (unsigned long)buf_size);
+    ESP_LOGD(TAG, "RAM részletek: code_len=%lu B stack=%lu B buf_size=%lu B",
+             (unsigned long)algo->code_len, (unsigned long)STACK_SIZE,
+             (unsigned long)buf_size);
 
     /* --- code betöltése a cél RAM-jába (blokkos + záró részleges szó) --- */
     esp_err_t e = write_mem(load_addr, algo->code, algo->code_len);
@@ -114,6 +125,8 @@ esp_err_t flm_runner_load(const flm_algo_t *algo)
         ESP_LOGE(TAG, "code betöltés hiba: %d", e);
         return e;
     }
+    ESP_LOGD(TAG, "PrgCode betoltve %lu B @ 0x%08lx",
+             (unsigned long)algo->code_len, (unsigned long)load_addr);
 
     /* --- BKPT-szó kiírása a visszatérési pontra --- */
     e = adiv5_write32(bkpt_addr, BKPT_INSTR);
@@ -137,6 +150,10 @@ static esp_err_t flm_call_pc(uint32_t pc_abs,
                              uint32_t timeout_ms, int *ret)
 {
     if (!s_state.loaded) return ESP_ERR_INVALID_STATE;
+
+    ESP_LOGD(TAG, "call pc=0x%08lx r0=0x%08lx r1=0x%08lx r2=0x%08lx r3=0x%08lx",
+             (unsigned long)pc_abs, (unsigned long)r0, (unsigned long)r1,
+             (unsigned long)r2, (unsigned long)r3);
 
     /* --- call_function ABI (terv 8.) --- */
     esp_err_t e;
@@ -177,6 +194,12 @@ static esp_err_t flm_call_pc(uint32_t pc_abs,
     uint32_t rv = 0;
     if ((e = cortexm_reg_read(CM_REG_R0, &rv)) != ESP_OK) return e;
     if (ret) *ret = (int)rv;
+
+    ESP_LOGD(TAG, "ret=%d (elvart=%d)", (int)rv, s_state.algo->success_ret);
+    if ((int)rv != s_state.algo->success_ret) {
+        ESP_LOGW(TAG, "ret=%d != elvart=%d (pc=0x%08lx)",
+                 (int)rv, s_state.algo->success_ret, (unsigned long)pc_abs);
+    }
     return ESP_OK;
 }
 
@@ -235,9 +258,13 @@ static esp_err_t program_cmsis(const flm_algo_t *algo, uint32_t base_addr,
     if (page > s_state.buf_size) page = s_state.buf_size;
 
     /* =========================== ERASE fázis =========================== */
+    ESP_LOGI(TAG, "Init (CMSIS, erase)");
     e = cmsis_init(algo, algo->dev_addr, FNC_ERASE);
     if (e != ESP_OK) return e;
 
+    ESP_LOGI(TAG, "Erase tartomany 0x%08lx..0x%08lx",
+             (unsigned long)base_addr,
+             (unsigned long)(base_addr + (uint32_t)len - 1u));
     if (algo->off_erase_chip != 0) {
         /* Teljes chip törlés egy lépésben. */
         rc = -1;
@@ -293,15 +320,21 @@ static esp_err_t program_cmsis(const flm_algo_t *algo, uint32_t base_addr,
 
     /* ========================== PROGRAM fázis ========================== */
     if (algo->off_program_page != 0) {
+        ESP_LOGI(TAG, "Init (CMSIS, program)");
         e = cmsis_init(algo, algo->dev_addr, FNC_PROGRAM);
         if (e != ESP_OK) return e;
 
+        ESP_LOGI(TAG, "Program %lu B @ 0x%08lx (page=%lu B)",
+                 (unsigned long)len, (unsigned long)base_addr,
+                 (unsigned long)page);
         if (cb) cb("Program", 0, (uint32_t)len, ctx);
         size_t off = 0;
         while (off < len) {
             size_t chunk = len - off;
             if (chunk > page) chunk = page;
 
+            ESP_LOGV(TAG, "page 0x%08lx (%u B)",
+                     (unsigned long)(base_addr + (uint32_t)off), (unsigned)chunk);
             e = write_mem(s_state.buf_addr, data + off, chunk);
             if (e != ESP_OK) { cmsis_uninit(algo, FNC_PROGRAM); return e; }
 
@@ -333,6 +366,8 @@ static esp_err_t program_cmsis(const flm_algo_t *algo, uint32_t base_addr,
     /* =========================== VERIFY fázis ========================== */
     if (algo->off_verify != 0) {
         /* FLM Verify(adr, sz, buf): siker esetén adr+sz a visszatérés. */
+        ESP_LOGI(TAG, "Verify %lu B @ 0x%08lx (FLM Verify ABI)",
+                 (unsigned long)len, (unsigned long)base_addr);
         e = cmsis_init(algo, algo->dev_addr, FNC_VERIFY);
         if (e != ESP_OK) return e;
 
@@ -345,6 +380,8 @@ static esp_err_t program_cmsis(const flm_algo_t *algo, uint32_t base_addr,
             e = write_mem(s_state.buf_addr, data + off, chunk);
             if (e != ESP_OK) { cmsis_uninit(algo, FNC_VERIFY); return e; }
 
+            ESP_LOGV(TAG, "verify page 0x%08lx (%u B)",
+                     (unsigned long)(base_addr + (uint32_t)off), (unsigned)chunk);
             uint32_t expect = (base_addr + (uint32_t)off) + (uint32_t)chunk;
             rc = -1;
             e = flm_call_pc(algo->load_addr + algo->off_verify,
@@ -369,7 +406,8 @@ static esp_err_t program_cmsis(const flm_algo_t *algo, uint32_t base_addr,
         if (e != ESP_OK) return e;
     } else {
         /* Visszaolvasásos ellenőrzés adiv5_read_block-kal. */
-        ESP_LOGI(TAG, "nincs Verify ABI -> visszaolvasásos ellenőrzés");
+        ESP_LOGI(TAG, "Verify %lu B @ 0x%08lx (visszaolvasásos)",
+                 (unsigned long)len, (unsigned long)base_addr);
         if (cb) cb("Verify", 0, (uint32_t)len, ctx);
         size_t off = 0;
         while (off < len) {
@@ -377,6 +415,8 @@ static esp_err_t program_cmsis(const flm_algo_t *algo, uint32_t base_addr,
             if (chunk > 64u) chunk = 64u;
             uint32_t words[16];
             size_t nwords = (chunk + 3u) / 4u;
+            ESP_LOGV(TAG, "verify page 0x%08lx (%u B)",
+                     (unsigned long)(base_addr + (uint32_t)off), (unsigned)chunk);
             e = adiv5_read_block(base_addr + (uint32_t)off, words, nwords);
             if (e != ESP_OK) return e;
             if (memcmp(words, data + off, chunk) != 0) {
@@ -389,6 +429,8 @@ static esp_err_t program_cmsis(const flm_algo_t *algo, uint32_t base_addr,
         }
     }
 
+    ESP_LOGI(TAG, "CMSIS programozás kész: 0x%08lx +%lu B",
+             (unsigned long)base_addr, (unsigned long)len);
     return ESP_OK;
 }
 
@@ -409,6 +451,7 @@ static esp_err_t program_st(const flm_algo_t *algo, uint32_t base_addr,
     /* ============================= 1. Init ============================= */
     /* ST Init(void); a felesleges 0 argumentumok ártalmatlanok. */
     if (algo->off_init != 0) {
+        ESP_LOGI(TAG, "Init (ST)");
         rc = -1;
         e = flm_call_pc(algo->off_init, 0, 0, 0, 0, algo->timeout_prog_ms, &rc);
         if (e != ESP_OK) return e;
@@ -423,6 +466,8 @@ static esp_err_t program_st(const flm_algo_t *algo, uint32_t base_addr,
     if (algo->off_st_sector_erase != 0) {
         uint32_t start = base_addr;
         uint32_t end   = base_addr + (uint32_t)len - 1u;
+        ESP_LOGI(TAG, "Erase tartomany 0x%08lx..0x%08lx (ST SectorErase)",
+                 (unsigned long)start, (unsigned long)end);
         if (cb) cb("Erase", 0, (uint32_t)len, ctx);
         rc = -1;
         e = flm_call_pc(algo->off_st_sector_erase, start, end, 0, 0,
@@ -435,6 +480,9 @@ static esp_err_t program_st(const flm_algo_t *algo, uint32_t base_addr,
         }
         if (cb) cb("Erase", (uint32_t)len, (uint32_t)len, ctx);
     } else if (algo->off_st_mass_erase != 0) {
+        ESP_LOGI(TAG, "Erase tartomany 0x%08lx..0x%08lx (ST MassErase)",
+                 (unsigned long)base_addr,
+                 (unsigned long)(base_addr + (uint32_t)len - 1u));
         if (cb) cb("Erase", 0, (uint32_t)len, ctx);
         rc = -1;
         e = flm_call_pc(algo->off_st_mass_erase, 0, 0, 0, 0,
@@ -453,16 +501,21 @@ static esp_err_t program_st(const flm_algo_t *algo, uint32_t base_addr,
     /* ============================ 3. Program =========================== */
     /* Write(flash_addr, chunk_size, buf_addr): a chunk a cél-RAM bufferében. */
     if (algo->off_st_write != 0) {
+        ESP_LOGI(TAG, "Program %lu B @ 0x%08lx (page=%lu B)",
+                 (unsigned long)len, (unsigned long)base_addr,
+                 (unsigned long)page);
         if (cb) cb("Program", 0, (uint32_t)len, ctx);
         size_t off = 0;
         while (off < len) {
             size_t chunk = len - off;
             if (chunk > page) chunk = page;
 
+            uint32_t flash_addr = base_addr + (uint32_t)off;
+            ESP_LOGV(TAG, "page 0x%08lx (%u B)",
+                     (unsigned long)flash_addr, (unsigned)chunk);
             e = write_mem(s_state.buf_addr, data + off, chunk);
             if (e != ESP_OK) return e;
 
-            uint32_t flash_addr = base_addr + (uint32_t)off;
             rc = -1;
             e = flm_call_pc(algo->off_st_write,
                             flash_addr, (uint32_t)chunk, s_state.buf_addr, 0,
@@ -487,7 +540,8 @@ static esp_err_t program_st(const flm_algo_t *algo, uint32_t base_addr,
      * ellenőrzéshez. Ezért — a feladat ajánlásának megfelelően — a biztos
      * úton megyünk: adiv5_read_block visszaolvasás + memcmp a `data`-val.
      * Ez determinisztikus és nem függ az adott loader Verify konvenciójától. */
-    ESP_LOGI(TAG, "ST verify: visszaolvasásos ellenőrzés (read_block + memcmp)");
+    ESP_LOGI(TAG, "Verify %lu B @ 0x%08lx (visszaolvasásos: read_block + memcmp)",
+             (unsigned long)len, (unsigned long)base_addr);
     if (cb) cb("Verify", 0, (uint32_t)len, ctx);
     {
         size_t off = 0;
@@ -496,6 +550,8 @@ static esp_err_t program_st(const flm_algo_t *algo, uint32_t base_addr,
             if (chunk > 64u) chunk = 64u;
             uint32_t words[16];
             size_t nwords = (chunk + 3u) / 4u;
+            ESP_LOGV(TAG, "verify page 0x%08lx (%u B)",
+                     (unsigned long)(base_addr + (uint32_t)off), (unsigned)chunk);
             e = adiv5_read_block(base_addr + (uint32_t)off, words, nwords);
             if (e != ESP_OK) return e;
             if (memcmp(words, data + off, chunk) != 0) {
@@ -508,6 +564,8 @@ static esp_err_t program_st(const flm_algo_t *algo, uint32_t base_addr,
         }
     }
 
+    ESP_LOGI(TAG, "ST programozás kész: 0x%08lx +%lu B",
+             (unsigned long)base_addr, (unsigned long)len);
     return ESP_OK;
 }
 
@@ -517,8 +575,14 @@ esp_err_t flm_runner_program(const flm_algo_t *algo, uint32_t base_addr,
 {
     if (!algo || !data || len == 0) return ESP_ERR_INVALID_ARG;
 
+    ESP_LOGI(TAG, "programozás indul: '%s' (abi=%s) 0x%08lx +%lu B",
+             algo->name ? algo->name : "(nincs)",
+             (algo->abi == FLM_ABI_ST) ? "ST" : "CMSIS",
+             (unsigned long)base_addr, (unsigned long)len);
+
     /* Betöltés, ha még nem ez az algo van a cél RAM-jában. */
     if (!s_state.loaded || s_state.algo != algo) {
+        ESP_LOGD(TAG, "algo nincs betöltve a cél RAM-jába -> flm_runner_load");
         esp_err_t e = flm_runner_load(algo);
         if (e != ESP_OK) return e;
     }

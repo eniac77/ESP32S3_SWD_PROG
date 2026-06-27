@@ -1,0 +1,25 @@
+menu "Bring-up es naplozas"
+
+    config BRINGUP_SELFTEST
+        bool "Boot-idoi SWD onteszt (cel detektalas + napló)"
+        default y
+        help
+            Boot utan egyszer megprobal SWD-n csatlakozni a celhoz, es az
+            UART-konzolra kiirja a DPIDR/DEV_ID/flash meret/RDP adatokat.
+            Bench bring-uphoz hasznos. Cel nelkul csak egy figyelmezteto sort ad.
+
+    config BRINGUP_SELFTEST_PERIODIC
+        bool "Periodikus ujra-detektalas a fociklusban"
+        depends on BRINGUP_SELFTEST
+        default n
+        help
+            Ha be van kapcsolva, a fociklus periodikusan ujra lefuttatja az
+            ontesztet (a heartbeat helyett).
+
+    config BRINGUP_SELFTEST_PERIOD_S
+        int "Periodikus onteszt periodusa (s)"
+        depends on BRINGUP_SELFTEST_PERIODIC
+        range 2 3600
+        default 5
+
+endmenu
