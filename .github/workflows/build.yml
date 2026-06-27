@@ -1,0 +1,47 @@
+# ESP32-S3 SWD programozó — CI build + host tesztek
+# Minden push/PR-nél (main ág) lefordítja a projektet ESP-IDF v5.5-tel (esp32s3 target),
+# majd lefuttatja a host (Python unittest) teszteket. A .stldr-t igénylő teszt magától SKIP-el.
+name: build
+
+# Trigger: main ág push + PR, valamint kézi indítás
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Hivatalos ESP-IDF v5.5 konténer (pip + python beépítve a LittleFS image-hez)
+    container:
+      image: espressif/idf:release-v5.5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Build: IDF környezet beforrasztása, majd target + build.
+      # A managed függőségeket (joltwallet/littlefs, espressif/mdns) a build tölti le hálózatról.
+      - name: Build (esp32s3)
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py set-target esp32s3 build
+
+      # Host tesztek ugyanabban a konténerben (Python stdlib unittest).
+      # A test_flm_extract a .stldr hiányában unittest.skipUnless-szel SKIP-el.
+      - name: Host tesztek
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          python -m unittest discover -s tests -v
+
+      # (Opcionális) lefordított app feltöltése artifactként
+      - name: Artifact feltöltés
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32s3_swd_prog-bin
+          path: build/esp32s3_swd_prog.bin
+          if-no-files-found: error

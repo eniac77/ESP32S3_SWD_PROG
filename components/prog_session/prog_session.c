@@ -108,6 +108,21 @@ static uint32_t read_flash_size(const target_info_t *info)
     return kb * 1024u;
 }
 
+/* RDP (Readout Protection) szint kiolvasása a leíró rdp_kind/rdp_addr alapján.
+   Visszaad: 0/1/2 az ismert szint, vagy -1 ha nem ismert/nem olvasható
+   (RDP_REG_NONE, NULL info, vagy SWD olvasási hiba). */
+static int read_rdp_level(const target_info_t *info)
+{
+    if (!info || info->rdp_kind == RDP_REG_NONE) {
+        return -1;
+    }
+    uint32_t reg = 0;
+    if (adiv5_read32(info->rdp_addr, &reg) != ESP_OK) {
+        return -1;
+    }
+    return target_db_rdp_level(info, reg);
+}
+
 /* ---- publikus API ----------------------------------------------------- */
 
 esp_err_t prog_session_init(void)
@@ -156,7 +171,7 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     emit(cb, ctx, &st, PROG_CONNECT, 0, "fajl olvasas");
     err = storage_lfs_read_all(fw_path, &data, &len);
     if (err != ESP_OK || !data || len == 0) {
-        emit(cb, ctx, &st, PROG_FAILED, 0, "fajl olvasas");
+        emit(cb, ctx, &st, PROG_FAILED, 0, "fajl olvasas hiba");
         err = (err == ESP_OK) ? ESP_FAIL : err;
         goto out;
     }
@@ -173,10 +188,35 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     /* 4. Cél detektálás (DEV_ID). */
     const target_info_t *info = detect_target(&st);
     if (!info) {
-        /* dev_id-t a status már tartalmazza (ha volt), de nincs leíró */
-        emit(cb, ctx, &st, PROG_FAILED, 0, "ismeretlen cel");
+        /* dev_id-t a status már tartalmazza (ha volt), de nincs leíró.
+           Hibakód-taxonómia: konkrét DEV_ID-vel, ha van. */
+        char msg[64];
+        if (st.dev_id != 0) {
+            snprintf(msg, sizeof(msg), "ismeretlen DEV_ID 0x%03X", (unsigned)st.dev_id);
+        } else {
+            snprintf(msg, sizeof(msg), "ismeretlen cel (nincs DEV_ID)");
+        }
+        emit(cb, ctx, &st, PROG_FAILED, 0, msg);
         err = ESP_ERR_NOT_FOUND;
         goto out;
+    }
+
+    /* 4b. RDP (Readout Protection) ellenőrzés flash MEGKEZDÉSE ELŐTT.
+       RDP1 -> csak mass-erase után írható (auto-unlock most nem cél);
+       RDP2 -> végleges zár. Mindkét esetben tiszta hibakóddal kilépünk. */
+    {
+        int rdp = read_rdp_level(info);
+        if (rdp >= 2) {
+            emit(cb, ctx, &st, PROG_FAILED, 0, "RDP2: vegleges zar");
+            err = ESP_ERR_INVALID_STATE;
+            goto out;
+        }
+        if (rdp == 1) {
+            emit(cb, ctx, &st, PROG_FAILED, 0, "RDP1: mass-erase szukseges");
+            err = ESP_ERR_INVALID_STATE;
+            goto out;
+        }
+        /* rdp == 0 (vedtelen) vagy rdp < 0 (NONE / nem olvasható) -> folytatjuk. */
     }
 
     /* 5. Flash méret. */
@@ -185,7 +225,7 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     /* 6. FLM kiválasztás — üres flm_blobs táblánál NULL a normális. */
     const flm_algo_t *algo = target_db_select_flm(info, flash_size);
     if (!algo) {
-        emit(cb, ctx, &st, PROG_FAILED, 0, "nincs FLM (vendored .FLM hianyzik)");
+        emit(cb, ctx, &st, PROG_FAILED, 0, "nincs FLM");
         err = ESP_ERR_NOT_SUPPORTED;
         goto out;
     }
@@ -196,7 +236,7 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     /* 8. FLM betöltés + program (erase/program/verify) progress-híddal. */
     err = flm_runner_load(algo);
     if (err != ESP_OK) {
-        emit(cb, ctx, &st, PROG_FAILED, 0, "FLM betoltes hiba");
+        emit(cb, ctx, &st, PROG_FAILED, 0, "Init hiba");
         goto out;
     }
 
@@ -210,7 +250,13 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     /* a híd által frissített dev_id/target_name visszamentése */
     st = bridge.st;
     if (err != ESP_OK) {
-        emit(cb, ctx, &st, PROG_FAILED, st.percent, "flash hiba");
+        /* Hibakód-taxonómia: a hiba abban a fázisban keletkezett, amit a
+           progress-híd utoljára beállított (Erase/Program/Verify). */
+        const char *fmsg = "Program hiba";
+        if      (st.phase == PROG_ERASE)  fmsg = "Erase hiba";
+        else if (st.phase == PROG_VERIFY) fmsg = "Verify hiba";
+        else if (st.phase == PROG_PROGRAM)fmsg = "Program hiba";
+        emit(cb, ctx, &st, PROG_FAILED, st.percent, fmsg);
         goto out;
     }
 
@@ -258,8 +304,18 @@ esp_err_t prog_session_detect(prog_status_t *out)
     }
 
     uint32_t flash_size = read_flash_size(info);
-    snprintf(st.message, sizeof(st.message), "%s, %u KB",
-             info->name, (unsigned)(flash_size / 1024u));
+
+    /* RDP szint kiolvasása (ha a leíróhoz tartozik RDP regiszter). A detektálás
+       erre NEM bukik el — csak informáljuk a felhasználót. */
+    int rdp = read_rdp_level(info);
+    const char *rdp_str = "RDP?";
+    if      (rdp == 0) rdp_str = "RDP0";
+    else if (rdp == 1) rdp_str = "RDP1";
+    else if (rdp == 2) rdp_str = "RDP2";
+    /* rdp < 0 (NONE / olvasási hiba) esetén "RDP?" marad. */
+
+    snprintf(st.message, sizeof(st.message), "%s, %u KB, %s",
+             info->name, (unsigned)(flash_size / 1024u), rdp_str);
     st.phase   = PROG_DONE;
     st.percent = 100;
 

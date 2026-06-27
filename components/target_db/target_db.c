@@ -42,67 +42,85 @@ static const uint32_t s_idcode_addrs[] = {
 
 #define FLASH_BASE 0x08000000u
 
+/* RDP / option-byte regiszterek családonkénti címei.
+ * - F4/F7: FLASH_OPTCR (RDP byte a [15:8] mezoben).
+ * - L4/G0: FLASH_OPTR  (RDP byte a [7:0] mezoben).
+ * - F0/F1/F3: FLASH_OBR (RDPRT mezo).
+ * (Lasd a megfelelo RMxxxx "Flash option control/status register" fejezeteket.) */
+#define RDP_OPTCR_F4 0x40023C14u  /* F4/F7 FLASH_OPTCR @ 0x40023C14 */
+#define RDP_OPTR_L4  0x40022020u  /* L4/G0 FLASH_OPTR  @ 0x40022020 */
+#define RDP_OBR_F1   0x4002201Cu  /* F0/F1/F3 FLASH_OBR @ 0x4002201C */
+
 /* A cél-adatbázis statikus táblája. Egy sor = egy ismert DEV_ID variáns. */
 static const target_info_t s_targets[] = {
     /* ---- STM32F0 (Cortex-M0), IDCODE @ 0x40015800, half-word prog ---- */
-    { STM32_FAM_F0, "STM32F030x8/F05x", 0x440, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word" },
-    { STM32_FAM_F0, "STM32F03x",        0x444, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word" },
-    { STM32_FAM_F0, "STM32F04x",        0x445, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word" },
-    { STM32_FAM_F0, "STM32F07x",        0x448, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word" },
-    { STM32_FAM_F0, "STM32F09x",        0x442, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word" },
+    /* RDP: FLASH_OBR @ 0x4002201C (RDPRT mezo) */
+    { STM32_FAM_F0, "STM32F030x8/F05x", 0x440, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F0, "STM32F03x",        0x444, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F0, "STM32F04x",        0x445, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F0, "STM32F07x",        0x448, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F0, "STM32F09x",        0x442, 0x40015800u, FSZ_F0, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
 
     /* ---- STM32F1 (Cortex-M3), IDCODE @ 0xE0042000, half-word prog ---- */
-    { STM32_FAM_F1, "STM32F103 medium", 0x410, 0xE0042000u, FSZ_F1, FLASH_BASE, "half-word" },
-    { STM32_FAM_F1, "STM32F1xx low",    0x412, 0xE0042000u, FSZ_F1, FLASH_BASE, "half-word" },
-    { STM32_FAM_F1, "STM32F1xx high",   0x414, 0xE0042000u, FSZ_F1, FLASH_BASE, "half-word" },
-    { STM32_FAM_F1, "STM32F1xx XL",     0x430, 0xE0042000u, FSZ_F1, FLASH_BASE, "half-word" },
+    /* RDP: FLASH_OBR @ 0x4002201C (RDPRT mezo) */
+    { STM32_FAM_F1, "STM32F103 medium", 0x410, 0xE0042000u, FSZ_F1, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F1, "STM32F1xx low",    0x412, 0xE0042000u, FSZ_F1, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F1, "STM32F1xx high",   0x414, 0xE0042000u, FSZ_F1, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F1, "STM32F1xx XL",     0x430, 0xE0042000u, FSZ_F1, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
 
     /* ---- STM32F3 (Cortex-M4), IDCODE @ 0xE0042000, half-word prog ---- */
-    { STM32_FAM_F3, "STM32F303xB/C",    0x422, 0xE0042000u, FSZ_F3, FLASH_BASE, "half-word" },
-    { STM32_FAM_F3, "STM32F303x6/8",    0x438, 0xE0042000u, FSZ_F3, FLASH_BASE, "half-word" },
-    { STM32_FAM_F3, "STM32F303xD/E",    0x446, 0xE0042000u, FSZ_F3, FLASH_BASE, "half-word" },
-    { STM32_FAM_F3, "STM32F37x",        0x432, 0xE0042000u, FSZ_F3, FLASH_BASE, "half-word" },
+    /* RDP: FLASH_OBR @ 0x4002201C (RDPRT mezo) */
+    { STM32_FAM_F3, "STM32F303xB/C",    0x422, 0xE0042000u, FSZ_F3, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F3, "STM32F303x6/8",    0x438, 0xE0042000u, FSZ_F3, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F3, "STM32F303xD/E",    0x446, 0xE0042000u, FSZ_F3, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
+    { STM32_FAM_F3, "STM32F37x",        0x432, 0xE0042000u, FSZ_F3, FLASH_BASE, "half-word", RDP_OBR_F1, RDP_REG_OBR_F1 },
 
     /* ---- STM32F4 (Cortex-M4), IDCODE @ 0xE0042000, sector erase ---- */
-    { STM32_FAM_F4, "STM32F405/407/415/417", 0x413, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)" },
-    { STM32_FAM_F4, "STM32F42x/43x",         0x419, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)" },
-    { STM32_FAM_F4, "STM32F401xB/C",         0x423, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)" },
-    { STM32_FAM_F4, "STM32F411",             0x431, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)" },
-    { STM32_FAM_F4, "STM32F401xD/E",         0x433, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)" },
-    { STM32_FAM_F4, "STM32F412",             0x441, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)" },
-    { STM32_FAM_F4, "STM32F446",             0x421, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)" },
-    { STM32_FAM_F4, "STM32F410",             0x458, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)" },
+    /* RDP: FLASH_OPTCR @ 0x40023C14 (RDP byte [15:8]) */
+    { STM32_FAM_F4, "STM32F405/407/415/417", 0x413, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F4, "STM32F42x/43x",         0x419, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F4, "STM32F401xB/C",         0x423, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F4, "STM32F411",             0x431, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F4, "STM32F401xD/E",         0x433, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F4, "STM32F412",             0x441, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F4, "STM32F446",             0x421, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F4, "STM32F410",             0x458, 0xE0042000u, FSZ_F4, FLASH_BASE, "word (PSIZE)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
 
     /* ---- STM32F7 (Cortex-M7), IDCODE @ 0xE0042000 ---- */
-    { STM32_FAM_F7, "STM32F74x/75x", 0x449, 0xE0042000u, FSZ_F7, FLASH_BASE, "word (ITCM/AXIM)" },
-    { STM32_FAM_F7, "STM32F76x/77x", 0x451, 0xE0042000u, FSZ_F7, FLASH_BASE, "word (ITCM/AXIM)" },
-    { STM32_FAM_F7, "STM32F72x/73x", 0x452, 0xE0042000u, FSZ_F7, FLASH_BASE, "word (ITCM/AXIM)" },
+    /* RDP: FLASH_OPTCR @ 0x40023C14 (RDP byte [15:8]) */
+    { STM32_FAM_F7, "STM32F74x/75x", 0x449, 0xE0042000u, FSZ_F7, FLASH_BASE, "word (ITCM/AXIM)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F7, "STM32F76x/77x", 0x451, 0xE0042000u, FSZ_F7, FLASH_BASE, "word (ITCM/AXIM)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
+    { STM32_FAM_F7, "STM32F72x/73x", 0x452, 0xE0042000u, FSZ_F7, FLASH_BASE, "word (ITCM/AXIM)", RDP_OPTCR_F4, RDP_REG_OPTCR_F4 },
 
     /* ---- STM32L0 (Cortex-M0+), IDCODE @ 0x40015800, half-page write ---- */
-    { STM32_FAM_L0, "STM32L01x/02x", 0x457, 0x40015800u, FSZ_L0, FLASH_BASE, "page/half-page" },
-    { STM32_FAM_L0, "STM32L03x/04x", 0x425, 0x40015800u, FSZ_L0, FLASH_BASE, "page/half-page" },
-    { STM32_FAM_L0, "STM32L05x/06x", 0x417, 0x40015800u, FSZ_L0, FLASH_BASE, "page/half-page" },
-    { STM32_FAM_L0, "STM32L07x/08x", 0x447, 0x40015800u, FSZ_L0, FLASH_BASE, "page/half-page" },
+    /* TODO: RDP cim ellenorizni (FLASH_OPTR cim/kodolas L0-n bizonytalan) -> NONE */
+    { STM32_FAM_L0, "STM32L01x/02x", 0x457, 0x40015800u, FSZ_L0, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
+    { STM32_FAM_L0, "STM32L03x/04x", 0x425, 0x40015800u, FSZ_L0, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
+    { STM32_FAM_L0, "STM32L05x/06x", 0x417, 0x40015800u, FSZ_L0, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
+    { STM32_FAM_L0, "STM32L07x/08x", 0x447, 0x40015800u, FSZ_L0, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
 
     /* ---- STM32L1 (Cortex-M3), IDCODE @ 0xE0042000, page flash ---- */
-    { STM32_FAM_L1, "STM32L1xx MD",   0x416, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page" },
-    { STM32_FAM_L1, "STM32L1xx MD+",  0x429, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page" },
-    { STM32_FAM_L1, "STM32L1xx HD",   0x427, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page" },
-    { STM32_FAM_L1, "STM32L1xx HD+",  0x436, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page" },
-    { STM32_FAM_L1, "STM32L1xx XL",   0x437, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page" },
+    /* TODO: RDP cim ellenorizni (FLASH_OBR/OPTR cim/kodolas L1-en bizonytalan) -> NONE */
+    { STM32_FAM_L1, "STM32L1xx MD",   0x416, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
+    { STM32_FAM_L1, "STM32L1xx MD+",  0x429, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
+    { STM32_FAM_L1, "STM32L1xx HD",   0x427, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
+    { STM32_FAM_L1, "STM32L1xx HD+",  0x436, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
+    { STM32_FAM_L1, "STM32L1xx XL",   0x437, 0xE0042000u, FSZ_L1, FLASH_BASE, "page/half-page", 0, RDP_REG_NONE },
 
     /* ---- STM32L4 (Cortex-M4), IDCODE @ 0xE0042000, double-word ---- */
-    { STM32_FAM_L4, "STM32L47x/48x",  0x415, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word" },
-    { STM32_FAM_L4, "STM32L43x/44x",  0x435, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word" },
-    { STM32_FAM_L4, "STM32L45x/46x",  0x462, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word" },
-    { STM32_FAM_L4, "STM32L41x/42x",  0x464, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word" },
-    { STM32_FAM_L4, "STM32L4Rx/4Sx",  0x470, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word" },
+    /* RDP: FLASH_OPTR @ 0x40022020 (RDP byte [7:0]) */
+    { STM32_FAM_L4, "STM32L47x/48x",  0x415, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 },
+    { STM32_FAM_L4, "STM32L43x/44x",  0x435, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 },
+    { STM32_FAM_L4, "STM32L45x/46x",  0x462, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 },
+    { STM32_FAM_L4, "STM32L41x/42x",  0x464, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 },
+    { STM32_FAM_L4, "STM32L4Rx/4Sx",  0x470, 0xE0042000u, FSZ_L4, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 },
 
     /* ---- STM32G0 (Cortex-M0+), IDCODE @ 0x40015800, double-word ---- */
-    { STM32_FAM_G0, "STM32G07x/08x",  0x460, 0x40015800u, FSZ_G0, FLASH_BASE, "double-word" },
-    { STM32_FAM_G0, "STM32G03x/04x",  0x466, 0x40015800u, FSZ_G0, FLASH_BASE, "double-word" },
-    { STM32_FAM_G0, "STM32G0Bx/0Cx",  0x456, 0x40015800u, FSZ_G0, FLASH_BASE, "double-word" },
-    { STM32_FAM_G0, "STM32G0B1",      0x467, 0x40015800u, FSZ_G0, FLASH_BASE, "double-word" }, /* TODO ellenőrizni (0x467 jellemzően a G0Bx/0Cx kat. azonosítója) */
+    /* RDP: FLASH_OPTR @ 0x40022020 (RDP byte [7:0]) */
+    { STM32_FAM_G0, "STM32G07x/08x",  0x460, 0x40015800u, FSZ_G0, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 },
+    { STM32_FAM_G0, "STM32G03x/04x",  0x466, 0x40015800u, FSZ_G0, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 },
+    { STM32_FAM_G0, "STM32G0Bx/0Cx",  0x456, 0x40015800u, FSZ_G0, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 },
+    { STM32_FAM_G0, "STM32G0B1",      0x467, 0x40015800u, FSZ_G0, FLASH_BASE, "double-word", RDP_OPTR_L4, RDP_REG_OPTR_L4 }, /* TODO ellenőrizni (0x467 jellemzően a G0Bx/0Cx kat. azonosítója) */
 };
 
 #define TARGET_COUNT (sizeof(s_targets) / sizeof(s_targets[0]))
@@ -214,4 +232,42 @@ const flm_algo_t *target_db_select_flm(const target_info_t *info, uint32_t flash
                  info->name, key, (unsigned)flash_size);
     }
     return best;
+}
+
+int target_db_rdp_level(const target_info_t *info, uint32_t reg_value)
+{
+    if (!info) {
+        return -1;
+    }
+
+    switch (info->rdp_kind) {
+        case RDP_REG_OPTCR_F4: {
+            /* F4/F7 FLASH_OPTCR: RDP byte a [15:8] mezoben.
+               0xAA -> level0 (vedtelen), 0xCC -> level2 (vegleges),
+               minden mas ertek -> level1. */
+            uint32_t rdp = (reg_value >> 8) & 0xFFu;
+            if (rdp == 0xAA) return 0;
+            if (rdp == 0xCC) return 2;
+            return 1;
+        }
+        case RDP_REG_OPTR_L4: {
+            /* L4/G0 FLASH_OPTR: RDP byte a [7:0] mezoben.
+               0xAA -> level0, 0xCC -> level2, egyebkent level1. */
+            uint32_t rdp = reg_value & 0xFFu;
+            if (rdp == 0xAA) return 0;
+            if (rdp == 0xCC) return 2;
+            return 1;
+        }
+        case RDP_REG_OBR_F1: {
+            /* F0/F1/F3 FLASH_OBR: az RDPRT (read protection) bit jelzi a
+               vedettseget. Korlat: az OBR-bol a level2 nem mindig olvashato ki
+               megbizhatoan, ezert itt csak level0 / level1 kulonboztetheto meg.
+               RDPRT = bit1 (0x2). Ha be van allitva -> legalabb level1. */
+            if (reg_value & 0x2u) return 1;
+            return 0;
+        }
+        case RDP_REG_NONE:
+        default:
+            return -1;
+    }
 }

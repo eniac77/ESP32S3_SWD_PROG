@@ -1,0 +1,11 @@
+menu "Cortex-M debug"
+    config CORTEXM_HW_NRST
+        bool "Hardveres nRST hasznalata a csatlakozashoz (ha be van kotve a celhez)"
+        default n
+        help
+            Ha a cel-csatlakozon a nRST MEGIS elerheto, ez bekapcsolja a
+            klasszikus connect-under-reset-et (nRST assert alatt bring-up,
+            majd release). Alapertelmezetten KIKAPCSOLVA: a cel aramkorokon
+            az nRST tipikusan nem elerheto, ezert tisztan SWD-n (SYSRESETREQ
+            + vektor-catch) csatlakozunk.
+endmenu
