@@ -36,6 +36,40 @@ function fmtUptime(s) {
   return `${sec} mp`;
 }
 
+/* ---- Token-kezelés (terv 12.2) ---- */
+const TOKEN_KEY = "swdprog_token";
+
+function getToken() {
+  try { return localStorage.getItem(TOKEN_KEY) || ""; }
+  catch (e) { return ""; }
+}
+
+function setToken(t) {
+  try {
+    if (t) localStorage.setItem(TOKEN_KEY, t);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch (e) { /* localStorage nem elérhető */ }
+}
+
+/* Token-fejléc hozzáadása a fetch opciókhoz (ha van token). */
+function withAuth(opts) {
+  opts = opts || {};
+  const t = getToken();
+  if (t) {
+    opts.headers = Object.assign({}, opts.headers, { "X-Auth-Token": t });
+  }
+  return opts;
+}
+
+/* Token-aware fetch: minden REST hívás ezen megy át. 401-nél egyértelmű üzenet. */
+async function apiFetch(url, opts) {
+  const r = await fetch(url, withAuth(opts));
+  if (r.status === 401) {
+    toast("Hibás vagy hiányzó token", "err");
+  }
+  return r;
+}
+
 let toastTimer = null;
 function toast(msg, kind) {
   const t = $("#toast");
@@ -53,7 +87,7 @@ function toast(msg, kind) {
 async function loadFiles(dir) {
   const listEl = $("#" + dir + "List");
   try {
-    const r = await fetch("/api/files?dir=" + dir);
+    const r = await apiFetch("/api/files?dir=" + dir);
     if (!r.ok) throw new Error("HTTP " + r.status);
     const items = await r.json();
     renderFiles(dir, listEl, items);
@@ -87,7 +121,9 @@ function renderFiles(dir, listEl, items) {
     const dl = document.createElement("a");
     dl.className = "btn ghost small";
     dl.textContent = "Letöltés";
-    dl.href = "/api/download?path=" + encodeURIComponent(path);
+    // Letöltés sima link -> nem tud fejlécet küldeni, ezért a token query-be megy
+    dl.href = "/api/download?path=" + encodeURIComponent(path) +
+              (getToken() ? "&token=" + encodeURIComponent(getToken()) : "");
     actions.appendChild(dl);
 
     if (dir === "fw") {
@@ -134,7 +170,7 @@ async function deleteFile(dir, path, btn) {
   if (!confirm("Biztosan törlöd ezt: " + path + " ?")) return;
   btn.disabled = true;
   try {
-    const r = await fetch("/api/file?path=" + encodeURIComponent(path), { method: "DELETE" });
+    const r = await apiFetch("/api/file?path=" + encodeURIComponent(path), { method: "DELETE" });
     if (!r.ok) throw new Error("HTTP " + r.status);
     toast("Törölve: " + path, "ok");
     loadFiles(dir);
@@ -148,8 +184,10 @@ async function programFile(path, btn) {
   if (!confirm("Flashelés indítása: " + path + " ?")) return;
   btn.disabled = true;
   try {
-    const r = await fetch("/api/program?file=" + encodeURIComponent(path), { method: "POST" });
-    if (r.status === 409) {
+    const r = await apiFetch("/api/program?file=" + encodeURIComponent(path), { method: "POST" });
+    if (r.status === 401) {
+      return;   // a 401 üzenetet az apiFetch már kiírta
+    } else if (r.status === 409) {
       toast("Egy flash folyamat már fut (busy).", "err");
     } else if (r.status === 202 || r.ok) {
       toast("Flash elindítva: " + path + " — haladás a folyamatsávon.", "ok");
@@ -167,7 +205,8 @@ async function programFile(path, btn) {
 async function cfgOp(op, name, btn) {
   btn.disabled = true;
   try {
-    const r = await fetch("/api/cfg/" + op + "?name=" + encodeURIComponent(name), { method: "POST" });
+    const r = await apiFetch("/api/cfg/" + op + "?name=" + encodeURIComponent(name), { method: "POST" });
+    if (r.status === 401) return;   // a 401 üzenetet az apiFetch már kiírta
     if (!r.ok) throw new Error("HTTP " + r.status);
     toast((op === "push" ? "Push →cél" : "Pull ←cél") + " kész: " + name, "ok");
     if (op === "pull") loadFiles("cfg");   // pull után frissül a tartalom
@@ -195,7 +234,7 @@ function setupUploader(dir, fileInputId, btnId, statusId) {
 
     try {
       // A body közvetlenül a File objektum -> a böngésző streameli.
-      const r = await fetch("/api/upload?path=" + encodeURIComponent(path), {
+      const r = await apiFetch("/api/upload?path=" + encodeURIComponent(path), {
         method: "POST",
         body: file,
         headers: { "Content-Type": "application/octet-stream" },
@@ -263,8 +302,11 @@ let reconnectTimer = null;
 
 function connectWS() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const t = getToken();
+  const url = proto + "//" + location.host + "/ws" +
+              (t ? "?token=" + encodeURIComponent(t) : "");
   try {
-    ws = new WebSocket(proto + "//" + location.host + "/ws");
+    ws = new WebSocket(url);
   } catch (e) {
     scheduleReconnect();
     return;
@@ -290,7 +332,39 @@ function scheduleReconnect() {
 /* Indítás                                                              */
 /* ===================================================================== */
 
+function setupToken() {
+  const input = $("#authToken");
+  const save = $("#authSave");
+  const clear = $("#authClear");
+  if (!input || !save) return;
+
+  input.value = getToken();   // meglévő token betöltése a mezőbe
+
+  save.onclick = () => {
+    setToken(input.value.trim());
+    toast(input.value.trim() ? "Token mentve" : "Token törölve", "ok");
+    // WS újracsatlakozás az új tokennel + listák frissítése
+    if (ws) { try { ws.close(); } catch (e) {} }
+    connectWS();
+    loadFiles("fw");
+    loadFiles("cfg");
+  };
+
+  if (clear) {
+    clear.onclick = () => {
+      input.value = "";
+      setToken("");
+      toast("Token törölve", "ok");
+      if (ws) { try { ws.close(); } catch (e) {} }
+      connectWS();
+      loadFiles("fw");
+      loadFiles("cfg");
+    };
+  }
+}
+
 function init() {
+  setupToken();
   setupUploader("fw", "fwFile", "fwUpload", "fwUpStatus");
   setupUploader("cfg", "cfgFile", "cfgUpload", "cfgUpStatus");
 

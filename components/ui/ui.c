@@ -69,6 +69,7 @@ static const char *s_ph_title = "";  /* aktuális placeholder címe         */
 /* Főmenü elemei (terv 15.2). */
 static const char *const MENU_ITEMS[] = {
     "Program firmware",
+    "Cel info (SWD)",
     "Cel konfig",
     "Elo adat",
     "Beallitasok",
@@ -282,6 +283,69 @@ static void ui_start_flash(void)
     }
 }
 
+/* Cél-detektálás (SWD) a ui_task kontextusából, szinkron. Egy
+   "Detektalas..." képernyőt mutat, majd a prog_session_detect() eredménye
+   alapján kirajzolja a cél nevét/DEV_ID-jét/üzenetét (vagy "Nincs cel"/hiba),
+   és egy gombnyomásig blokkol. A hívó utána visszaviszi a főmenübe. */
+static void ui_start_detect(void)
+{
+    /* Ha épp flash/detekt fut, ne indítsunk párhuzamosan. */
+    if (prog_session_busy()) {
+        display_oled_clear();
+        ui_draw_header("Cel info");
+        display_oled_text_center(28, "Foglalt", 1);
+        display_oled_flush();
+        enc_event_t evb;
+        while (input_enc_get(&evb, portMAX_DELAY)) {
+            if (evb == BTN_SHORT || evb == BTN_LONG) break;
+        }
+        return;
+    }
+
+    /* "Detektalas..." képernyő a (potenciálisan lassú) SWD bring-up alatt. */
+    display_oled_clear();
+    ui_draw_header("Cel info");
+    display_oled_text_center(28, "Detektalas...", 1);
+    display_oled_flush();
+
+    prog_status_t st;
+    memset(&st, 0, sizeof(st));
+    esp_err_t err = prog_session_detect(&st);
+
+    display_oled_clear();
+    if (err == ESP_OK && st.dev_id != 0) {
+        /* Siker: cél neve + DEV_ID hexben + (ha van) üzenet/méret. */
+        ui_draw_header("Cel info");
+        display_oled_text(2, 18, st.target_name[0] ? st.target_name : "?", 1);
+
+        char dbuf[20];
+        snprintf(dbuf, sizeof(dbuf), "DEV: 0x%03X", st.dev_id);
+        display_oled_text(2, 30, dbuf, 1);
+
+        if (st.message[0]) {
+            display_oled_text(2, 42, st.message, 1);
+        }
+        ESP_LOGI(TAG, "detekt OK: %s DEV=0x%03X %s",
+                 st.target_name, st.dev_id, st.message);
+    } else {
+        /* Nincs cél vagy hiba: üzenet, vagy az esp_err név. */
+        ui_draw_header("Cel info");
+        display_oled_text_center(24, "Nincs cel", 1);
+        const char *m = st.message[0] ? st.message : esp_err_to_name(err);
+        display_oled_text_center(40, m, 1);
+        ESP_LOGW(TAG, "detekt sikertelen: err=%s msg=%s",
+                 esp_err_to_name(err), st.message);
+    }
+    display_oled_text_center(54, "Nyomj gombot", 1);
+    display_oled_flush();
+
+    /* Várunk egy gombnyomásra (bármilyen enkóder-eseményt elnyelünk). */
+    enc_event_t ev;
+    while (input_enc_get(&ev, portMAX_DELAY)) {
+        if (ev == BTN_SHORT || ev == BTN_LONG) break;
+    }
+}
+
 /* A teljes aktuális képernyő kirajzolása az állapot alapján. */
 static void ui_render(void)
 {
@@ -354,6 +418,9 @@ static void ui_handle(enc_event_t ev)
             if (s_sel == 0) {            /* Program firmware */
                 fw_list_load();
                 enter_screen(SCR_FWLIST);
+            } else if (s_sel == 1) {     /* Cel info (SWD) — szinkron detekt */
+                ui_start_detect();
+                /* Detekt után maradunk a főmenüben (újrarajzol a ui_task). */
             } else {                     /* placeholder almenük */
                 s_ph_title = MENU_ITEMS[s_sel];
                 enter_screen(SCR_PLACEHOLDER);

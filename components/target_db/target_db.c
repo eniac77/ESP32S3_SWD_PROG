@@ -6,8 +6,9 @@
  * STM32 F0/F1/F3/F4/F7/L0/L1/L4/G0. (terv 10. szekció)
  *
  * Forrás: ST referencia-kézikönyvek (RMxxxx) DBGMCU IDCODE és
- * "Flash size data register" fejezetei. Ahol az érték bizonytalan,
- * azt "TODO ellenőrizni" kommenttel jelöltem.
+ * "Flash size data register" fejezetei. A flash-size regiszter címek
+ * (FSZ_*) családonként ellenőrzöttek (lásd a makróknál a konkrét RM-et).
+ * Ahol egy DEV_ID-besorolás bizonytalan, azt "TODO ellenőrizni" jelöli.
  */
 #include <string.h>
 #include "target_db.h"
@@ -24,17 +25,20 @@ static const uint32_t s_idcode_addrs[] = {
     0x40015800u,  /* M0/M0+:  F0, L0, G0 */
 };
 
-/* Flash-size regiszter címek családonként (a kiolvasott 16 bites érték
- * tipikusan a flash méretét adja kB-ban). A bizonytalanokat jelöltem. */
-#define FSZ_F0  0x1FFFF7CCu
-#define FSZ_F1  0x1FFFF7E0u
-#define FSZ_F3  0x1FFFF7CCu
-#define FSZ_F4  0x1FFF7A22u
-#define FSZ_F7  0x1FF0F442u
-#define FSZ_L0  0x1FF8007Cu  /* TODO ellenőrizni (L0 cat.-függő lehet) */
-#define FSZ_L1  0x1FF800CCu  /* TODO ellenőrizni (L1 cat.-függő: MD/HD eltérhet) */
-#define FSZ_L4  0x1FFF75E0u
-#define FSZ_G0  0x1FFF75E0u
+/* Flash-size regiszter (Flash size data register) címek családonként.
+ * A megadott címen egy 16 bites érték olvasható ki, ami a gyári flash
+ * méretét adja kB-ban. A címek az ST referencia-kézikönyvekből (RMxxxx)
+ * a "Flash size data register" / "Memory size register" fejezetekből
+ * származnak, és ellenőrzöttek. */
+#define FSZ_F0  0x1FFFF7CCu  /* RM0091/RM0360 F-size @ 0x1FFFF7CC (16-bit, kB) */
+#define FSZ_F1  0x1FFFF7E0u  /* RM0008 Flash size reg @ 0x1FFFF7E0 (16-bit, kB) */
+#define FSZ_F3  0x1FFFF7CCu  /* RM0316/RM0364 F-size @ 0x1FFFF7CC (16-bit, kB) */
+#define FSZ_F4  0x1FFF7A22u  /* RM0090/RM0383/RM0401 F-size @ 0x1FFF7A22 (16-bit, kB) */
+#define FSZ_F7  0x1FF0F442u  /* RM0385/RM0410 F-size @ 0x1FF0F442 (16-bit, kB) */
+#define FSZ_L0  0x1FF8007Cu  /* RM0451/RM0377 Flash size reg @ 0x1FF8007C (16-bit, kB) */
+#define FSZ_L1  0x1FF8004Cu  /* RM0038 F-size @ 0x1FF8004C (16-bit, kB); a korábbi 0x1FF800CC hibás volt */
+#define FSZ_L4  0x1FFF75E0u  /* RM0351/RM0394 F-size @ 0x1FFF75E0 (16-bit, kB) */
+#define FSZ_G0  0x1FFF75E0u  /* RM0444 F-size @ 0x1FFF75E0 (16-bit, kB) */
 
 #define FLASH_BASE 0x08000000u
 

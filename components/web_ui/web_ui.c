@@ -14,6 +14,13 @@
  */
 #include "web_ui.h"
 
+/* Web-UI token (terv 12.2): üres = auth kikapcsolva (nyílt); állítsd be itt
+ * vagy -D WEB_UI_TOKEN="..." -tal AP-módhoz. A DEFAULT ÜRES, hogy a build és
+ * a jelenlegi viselkedés ne változzon. */
+#ifndef WEB_UI_TOKEN
+#define WEB_UI_TOKEN ""
+#endif
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,9 +108,28 @@ static esp_err_t send_json_error(httpd_req_t *req, const char *status, const cha
  * REST/WS handler elején hívd, és 401-gyel térj vissza, ha nem hitelesített. */
 static esp_err_t auth_check(httpd_req_t *req)
 {
-    (void)req;
-    /* TODO: Basic Auth / token ellenőrzés AP-módban (terv 12.2). */
-    return ESP_OK;
+    /* Üres token = nyílt mód (auth kikapcsolva) -> mindig OK. */
+    if (WEB_UI_TOKEN[0] == '\0') {
+        return ESP_OK;
+    }
+
+    char tok[128] = {0};
+
+    /* 1) X-Auth-Token HTTP fejléc. */
+    size_t hlen = httpd_req_get_hdr_value_len(req, "X-Auth-Token");
+    if (hlen > 0 && hlen < sizeof(tok)) {
+        if (httpd_req_get_hdr_value_str(req, "X-Auth-Token", tok, sizeof(tok)) == ESP_OK) {
+            if (strcmp(tok, WEB_UI_TOKEN) == 0) return ESP_OK;
+        }
+    }
+
+    /* 2) ?token=... query paraméter. */
+    tok[0] = '\0';
+    if (get_query_param(req, "token", tok, sizeof(tok)) == ESP_OK) {
+        if (strcmp(tok, WEB_UI_TOKEN) == 0) return ESP_OK;
+    }
+
+    return ESP_FAIL;
 }
 
 /* Biztonságos path-összefűzés a /lfs alá. A bejövő "path" pl. "/fw/x.bin".
@@ -596,6 +622,11 @@ static void ws_remove_fd(int fd)
 static esp_err_t ws_handler(httpd_req_t *req)
 {
     if (req->method == HTTP_GET) {
+        /* Kézfogás: ha token be van állítva, a ?token= query-t ellenőrizzük.
+         * Nem egyezés -> 401, a kliens nem kerül fel a broadcast-listára. */
+        if (auth_check(req) != ESP_OK) {
+            return send_json_error(req, "401 Unauthorized", "unauthorized");
+        }
         /* handshake befejeződött, a kliens fel van véve */
         int fd = httpd_req_to_sockfd(req);
         ws_add_fd(fd);

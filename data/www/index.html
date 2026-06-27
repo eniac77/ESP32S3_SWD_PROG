@@ -23,6 +23,19 @@
 
   <main class="grid">
 
+    <!-- Hozzáférési token (terv 12.2) — AP-módban ajánlott -->
+    <section class="card span2">
+      <div class="card-head">
+        <h2>Hozzáférési token</h2>
+        <span class="muted">AP-módban ajánlott</span>
+      </div>
+      <div class="uploader">
+        <input type="password" id="authToken" placeholder="Token (üres = nincs auth)" autocomplete="off">
+        <button class="btn" id="authSave">Mentés</button>
+        <button class="btn ghost" id="authClear">Törlés</button>
+      </div>
+    </section>
+
     <!-- Élő cél-állapot a /ws "state" üzenetekből -->
     <section class="card span2">
       <div class="card-head">
