@@ -30,6 +30,7 @@
 #include "cortexm_debug.h"
 #include "flm_runner.h"
 #include "flm_blobs.h"
+#include "avr_isp.h"
 #include "ui.h"
 
 static const char *TAG = "main";
@@ -101,6 +102,24 @@ static void bringup_selftest(void)
 }
 #endif
 
+#if CONFIG_BRINGUP_AVR_SELFTEST
+static void bringup_avr_selftest(void)
+{
+    avr_dev_t dev;
+    ESP_LOGI(TAG, "[AVR-SELFTEST] AVR ISP signature olvasas...");
+    esp_err_t err = avr_isp_detect(&dev);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "[AVR-SELFTEST] sig=%02X %02X %02X -> %s",
+                 dev.sig[0], dev.sig[1], dev.sig[2],
+                 dev.known ? dev.name : "ismeretlen");
+    } else {
+        ESP_LOGW(TAG, "[AVR-SELFTEST] nincs AVR / hiba: %s", esp_err_to_name(err));
+        ESP_LOGW(TAG, "[AVR-SELFTEST] ellenorizd: SCK=GPIO15, MOSI=GPIO16, "
+                      "MISO=GPIO7, RESET=GPIO21, GND kozos, cel 3.3-5V.");
+    }
+}
+#endif
+
 void app_main(void)
 {
     setup_logging();
@@ -125,6 +144,7 @@ void app_main(void)
     TRY(flm_blobs_init());
     TRY(target_db_init());
     TRY(prog_session_init());
+    TRY(avr_isp_init());
     TRY(target_serial_init());
 
     /* Hálózat / távoli elérés */
@@ -136,6 +156,9 @@ void app_main(void)
 
 #if CONFIG_BRINGUP_SELFTEST
     bringup_selftest();
+#endif
+#if CONFIG_BRINGUP_AVR_SELFTEST
+    bringup_avr_selftest();
 #endif
 
     uint32_t tick = 0;

@@ -18,6 +18,7 @@ idf_component_register(
         cortexm_debug
         flm_runner
         flm_blobs
+        avr_isp
 )
 
 # LittleFS image generálás: a ../data fa tartalma a "storage" partícióra kerül

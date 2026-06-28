@@ -22,4 +22,12 @@ menu "Bring-up es naplozas"
         range 2 3600
         default 5
 
+    config BRINGUP_AVR_SELFTEST
+        bool "Boot-idoi AVR ISP onteszt (signature olvasas + napló)"
+        default n
+        help
+            Boot utan egyszer megprobalja AVR ISP-n kiolvasni a cel signature-t
+            (ATtiny13 stb.), es az UART-konzolra irja. Default KI (a SWD onteszt
+            mas labakon van; csak akkor kapcsold be, ha AVR cel van bekotve).
+
 endmenu

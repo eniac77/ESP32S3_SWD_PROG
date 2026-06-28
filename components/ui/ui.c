@@ -27,6 +27,7 @@
 #include "input_enc.h"
 #include "storage_lfs.h"
 #include "prog_session.h"   /* SWD flash orchestráció (prog_session_flash_file) */
+#include "avr_isp.h"        /* AVR ISP programozó (ATtiny13 stb.) — párhuzamos flow */
 
 #include "esp_log.h"
 
@@ -57,6 +58,8 @@ typedef enum {
     SCR_MENU,       /* főmenü                           */
     SCR_FWLIST,     /* /lfs/fw fájllista                */
     SCR_FWSEL,      /* kiválasztott fw megerősítő       */
+    SCR_AVRLIST,    /* AVR ISP: /lfs/fw fájllista       */
+    SCR_AVRSEL,     /* AVR ISP: kiválasztott fájl megerősítő */
     SCR_PLACEHOLDER /* "(hamarosan)" almenük            */
 } ui_screen_t;
 
@@ -70,6 +73,7 @@ static const char *s_ph_title = "";  /* aktuális placeholder címe         */
 static const char *const MENU_ITEMS[] = {
     "Program firmware",
     "Cel info (SWD)",
+    "AVR ISP (ATtiny)",
     "Cel konfig",
     "Elo adat",
     "Beallitasok",
@@ -194,6 +198,17 @@ static void draw_fwsel(void)
     display_oled_text(2, 18, "Selected:", 1);
     display_oled_text(2, 30, s_sel_name, 1);
     display_oled_text(2, 46, "OK=flash", 1);   /* BTN_SHORT -> flash indul */
+    display_oled_flush();
+}
+
+/* 3b/AVR. Kiválasztott AVR fájl megerősítő képernyő (.hex/.bin). */
+static void draw_avrsel(void)
+{
+    display_oled_clear();
+    ui_draw_header("AVR ISP");
+    display_oled_text(2, 18, "Selected:", 1);
+    display_oled_text(2, 30, s_sel_name, 1);
+    display_oled_text(2, 46, "OK=flash", 1);   /* BTN_SHORT -> AVR flash indul */
     display_oled_flush();
 }
 
@@ -346,6 +361,134 @@ static void ui_start_detect(void)
     }
 }
 
+/* ---------------------------------------------------------------------- */
+/* AVR ISP flow — detekt + flash progress (mirror a SWD-ének, terv 15)    */
+/* ---------------------------------------------------------------------- */
+
+/* avr_isp progress callback: a flashelő (itt: ui_task) kontextusából hívódik
+   minden fázis-/százalék-váltáskor. Egy teljes képernyőt rajzol: fázis-címke
+   (fejléc, a hívótól kapott 'phase' szöveg), a fájlnév és egy százalékos
+   progress-bar. A SWD ui_flash_cb mintájára (clear -> rajz -> flush). */
+static void ui_avr_flash_cb(const char *phase, int percent, void *ctx)
+{
+    (void)ctx;
+
+    /* Százalék 0..100 közé szorítva (defenzív a bar-rajzhoz). */
+    int pct = percent;
+    if (pct < 0)   pct = 0;
+    if (pct > 100) pct = 100;
+
+    display_oled_clear();
+    ui_draw_header(phase ? phase : "...");
+
+    /* A flashelt fájl neve, illetve a százalék szövegként. */
+    display_oled_text(2, 18, s_sel_name[0] ? s_sel_name : "?", 1);
+
+    char pbuf[8];
+    snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
+    display_oled_text(2, 30, pbuf, 1);
+
+    /* Progress-bar: 1px keret + belső kitöltés a százalék arányában. */
+    const uint8_t bx = 2, by = 44, bw = OLED_W - 4, bh = 12;
+    display_oled_rect(bx, by, bw, bh);
+    int fill = ((bw - 2) * pct) / 100;
+    if (fill > 0) {
+        display_oled_fill_rect(bx + 1, by + 1, (uint8_t)fill, bh - 2, true);
+    }
+
+    display_oled_flush();
+}
+
+/* A kiválasztott AVR fájl szinkron flashelése a ui_task kontextusából. A SWD
+   ui_start_flash mintájára: a hívás végéig blokkol (progress a cb-ben), végén
+   eredmény-képernyő, majd egy gombnyomásig vár; a hívó visz vissza a listához. */
+static void ui_avr_start_flash(void)
+{
+    char fw_path[64];
+    snprintf(fw_path, sizeof(fw_path), STORAGE_LFS_BASE "/fw/%s", s_sel_name);
+
+    ESP_LOGI(TAG, "AVR flash indul: %s", fw_path);
+    esp_err_t err = avr_isp_flash_file(fw_path, ui_avr_flash_cb, NULL);
+
+    /* Eredmény-képernyő: OK -> "KESZ", hiba -> esp_err név (rövid). */
+    display_oled_clear();
+    if (err == ESP_OK) {
+        ui_draw_header("KESZ");
+        display_oled_text_center(28, "Flash OK", 1);
+        ESP_LOGI(TAG, "AVR flash kesz: %s", fw_path);
+    } else {
+        ui_draw_header("HIBA");
+        display_oled_text_center(28, esp_err_to_name(err), 1);
+        ESP_LOGE(TAG, "AVR flash hiba: %s", esp_err_to_name(err));
+    }
+    display_oled_text_center(50, "Nyomj gombot", 1);
+    display_oled_flush();
+
+    /* Várunk egy gombnyomásra (bármilyen enkóder-eseményt elnyelünk). */
+    enc_event_t ev;
+    while (input_enc_get(&ev, portMAX_DELAY)) {
+        if (ev == BTN_SHORT || ev == BTN_LONG) break;
+    }
+}
+
+/* AVR cél-detektálás a ui_task kontextusából, szinkron (mirror a SWD
+   ui_start_detect-jének). "Detektalas..." képernyőt mutat, majd az
+   avr_isp_detect() eredménye alapján kirajzolja a signature-t, az eszköznevet
+   és a flash méretet (vagy "Nincs cel"/hiba), és egy gombnyomásig blokkol.
+   Sikeres detekt esetén true-t ad vissza (a hívó tovább a fájllistához). */
+static bool ui_avr_start_detect(void)
+{
+    /* "Detektalas..." képernyő a (potenciálisan lassú) ISP bring-up alatt. */
+    display_oled_clear();
+    ui_draw_header("AVR ISP");
+    display_oled_text_center(28, "Detektalas...", 1);
+    display_oled_flush();
+
+    avr_dev_t dev;
+    memset(&dev, 0, sizeof(dev));
+    esp_err_t err = avr_isp_detect(&dev);
+
+    bool ok = (err == ESP_OK);
+
+    display_oled_clear();
+    ui_draw_header("AVR ISP");
+    if (ok) {
+        /* Signature 3 bájt hexben. */
+        char sbuf[24];
+        snprintf(sbuf, sizeof(sbuf), "SIG: %02X %02X %02X",
+                 dev.sig[0], dev.sig[1], dev.sig[2]);
+        display_oled_text(2, 16, sbuf, 1);
+
+        /* Eszköznév (ismert) vagy "ismeretlen". */
+        display_oled_text(2, 28, (dev.known && dev.name) ? dev.name : "ismeretlen", 1);
+
+        /* Flash méret bájtban. */
+        char fbuf[24];
+        snprintf(fbuf, sizeof(fbuf), "Flash: %u B", (unsigned)dev.flash_size);
+        display_oled_text(2, 40, fbuf, 1);
+
+        display_oled_text_center(54, "OK=tovabb", 1);
+        ESP_LOGI(TAG, "AVR detekt OK: sig %02X %02X %02X %s flash=%u",
+                 dev.sig[0], dev.sig[1], dev.sig[2],
+                 (dev.known && dev.name) ? dev.name : "ismeretlen",
+                 (unsigned)dev.flash_size);
+    } else {
+        display_oled_text_center(24, "Nincs cel", 1);
+        display_oled_text_center(40, esp_err_to_name(err), 1);
+        display_oled_text_center(54, "Nyomj gombot", 1);
+        ESP_LOGW(TAG, "AVR detekt sikertelen: err=%s", esp_err_to_name(err));
+    }
+    display_oled_flush();
+
+    /* Várunk egy gombnyomásra. BTN_LONG = mégse (false), egyébként tovább. */
+    enc_event_t ev;
+    while (input_enc_get(&ev, portMAX_DELAY)) {
+        if (ev == BTN_LONG) return false;
+        if (ev == BTN_SHORT) break;
+    }
+    return ok;
+}
+
 /* A teljes aktuális képernyő kirajzolása az állapot alapján. */
 static void ui_render(void)
 {
@@ -362,6 +505,13 @@ static void ui_render(void)
         break;
     case SCR_FWSEL:
         draw_fwsel();
+        break;
+    case SCR_AVRLIST:
+        ui_draw_list("AVR ISP fajl", s_fw_count, s_sel, s_scroll,
+                     fw_item, "(nincs fajl)");
+        break;
+    case SCR_AVRSEL:
+        draw_avrsel();
         break;
     case SCR_PLACEHOLDER:
         draw_placeholder();
@@ -421,6 +571,13 @@ static void ui_handle(enc_event_t ev)
             } else if (s_sel == 1) {     /* Cel info (SWD) — szinkron detekt */
                 ui_start_detect();
                 /* Detekt után maradunk a főmenüben (újrarajzol a ui_task). */
+            } else if (s_sel == 2) {     /* AVR ISP (ATtiny) — detekt -> fájllista */
+                if (ui_avr_start_detect()) {
+                    /* Sikeres detekt + OK: tovább a fájllistához. */
+                    fw_list_load();
+                    enter_screen(SCR_AVRLIST);
+                }
+                /* Sikertelen/mégse: maradunk a főmenüben (ui_task újrarajzol). */
             } else {                     /* placeholder almenük */
                 s_ph_title = MENU_ITEMS[s_sel];
                 enter_screen(SCR_PLACEHOLDER);
@@ -455,6 +612,34 @@ static void ui_handle(enc_event_t ev)
         } else if (ev == BTN_LONG) {
             /* Mégse: vissza a fájllistához flash nélkül. */
             s_screen = SCR_FWLIST;
+        }
+        break;
+
+    /* --- AVR ISP fájllista --- */
+    case SCR_AVRLIST:
+        switch (ev) {
+        case ENC_CW:    list_move(+1, s_fw_count); break;
+        case ENC_CCW:   list_move(-1, s_fw_count); break;
+        case BTN_LONG:  enter_screen(SCR_MENU);    break;
+        case BTN_SHORT:
+            if (s_fw_count > 0) {
+                strncpy(s_sel_name, s_fw_names[s_sel], FW_NAME_LEN - 1);
+                s_sel_name[FW_NAME_LEN - 1] = '\0';
+                s_screen = SCR_AVRSEL;
+            }
+            break;
+        }
+        break;
+
+    /* --- AVR ISP kiválasztott fájl megerősítő --- */
+    case SCR_AVRSEL:
+        if (ev == BTN_SHORT) {
+            /* Megerősítve: szinkron AVR flash a ui_task kontextusából. */
+            ui_avr_start_flash();
+            s_screen = SCR_AVRLIST;   /* végén vissza a fájllistához */
+        } else if (ev == BTN_LONG) {
+            /* Mégse: vissza a fájllistához flash nélkül. */
+            s_screen = SCR_AVRLIST;
         }
         break;
 

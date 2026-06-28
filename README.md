@@ -12,6 +12,7 @@ Egyetlen ESP32-S3-N16R8 modul (16 MB flash, 8 MB octal PSRAM), ESP-IDF alapon. A
 
 - **SWD flashelés PC nélkül**: `.bin` firmware felprogramozása STM32-re, a flash-algoritmust a cél RAM-jában futtatva. **nRST nélkül** működik: a csatlakozás `SYSRESETREQ` + vektor-catch szoftveres resettel megy (a cél áramkörön nincs reset láb).
 - **Multi-család támogatás**: F0/F1/F3/F4/F7/L0/L1/L4/G0, DEV_ID alapú cél-felismeréssel és méret-detektálással.
+- **AVR ISP programozó** (külön interfész): ATtiny13/13A és rokon AVR-ek (ATtiny25/45/85/2313, ATmega8/328P) felprogramozása bit-bang SPI ISP-n, `.hex` (Intel HEX) vagy `.bin` forrásból, signature-detektálással. Lábak: SCK=GPIO15, MOSI=GPIO16, MISO=GPIO7, RESET=GPIO21 (Kconfig-gal állítható).
 - **Soros konfig-híd**: bináris `.cfg` fájlok fel-/letöltése a futó cél STM32 alkalmazásába/ból, keretezett UART-protokollon (`SOF | LEN | CMD | PAYLOAD | CRC16`).
 - **Élő adat**: a cél periodikus státusz-frame-jei egy közös `target_state` modellbe folynak, amit az OLED és a web-UI WebSocket egyszerre fogyaszt.
 - **Helyi UI**: SSD1306 128×64 OLED + gombos enkóder (görgetett fájllista, cél-típus, %-os progress bar, élő adat).
@@ -105,6 +106,10 @@ Modul: **ESP32-S3-N16R8** (16 MB flash, 8 MB octal PSRAM).
 | Cél Vref érzékelés | GPIO1 (ADC1) | feszültség-jelenlét + szint |
 | Cél táp EN (opc.) | GPIO13 | load switch, 3.3 V |
 | Státusz LED | GPIO14 / WS2812 | fázis/hiba kijelzés |
+| AVR ISP SCK | GPIO15 | `avr_isp` bit-bang SPI |
+| AVR ISP MOSI | GPIO16 | `avr_isp` |
+| AVR ISP MISO | GPIO7 | `avr_isp` (bemenet) |
+| AVR ISP RESET | GPIO21 | `avr_isp` (aktív-alacsony) |
 
 ### Cél-csatlakozó
 

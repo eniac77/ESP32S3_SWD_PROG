@@ -1,0 +1,22 @@
+menu "AVR ISP programozo"
+    config AVR_ISP_SCK_GPIO
+        int "SCK GPIO"
+        default 15
+        help
+            Serial clock kimenet az ISP-hez. Idle alacsony (SPI mode 0).
+    config AVR_ISP_MOSI_GPIO
+        int "MOSI GPIO"
+        default 16
+        help
+            Master Out / Slave In adatkimenet a celhez.
+    config AVR_ISP_MISO_GPIO
+        int "MISO GPIO"
+        default 7
+        help
+            Master In / Slave Out adatbemenet a celtol.
+    config AVR_ISP_RESET_GPIO
+        int "RESET GPIO (aktiv alacsony)"
+        default 21
+        help
+            A cel RESET laba. Programozas alatt lehuzva (aktiv alacsony).
+endmenu

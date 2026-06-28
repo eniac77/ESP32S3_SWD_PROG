@@ -78,9 +78,11 @@ flm_packs/             # vendored .FLM források (ST DFP)
 - Strapping: GPIO0, 3, 45, 46 — kerüld.
 - GPIO19/20: native USB pad — fenntartva a jövőbeli USB hosthoz.
 
-**Szabadon kiosztható:** GPIO1–18, 21, 38–42, 47, 48.
+**Szabadon kiosztható:** GPIO1–18, 21, 38–42, 47, 48 (ebből az AVR ISP már foglal néhányat — lásd lent).
 
 **Javasolt kiosztás:** SWCLK=GPIO4, SWDIO=GPIO5, nRST=GPIO6 (OD+pullup — **fenntartva az ESP-n, a célhoz NEM kötjük**), UART TX=GPIO17, UART RX=GPIO18, OLED SDA=GPIO8, OLED SCL=GPIO9, Enkóder A=GPIO10, B=GPIO11, SW=GPIO12, Vref ADC=GPIO1, táp EN=GPIO13, LED=GPIO14.
+
+**AVR ISP (ATtiny13 stb. — külön interfész, `avr_isp` komponens):** SCK=GPIO15, MOSI=GPIO16, MISO=GPIO7, RESET=GPIO21 (aktív-alacsony, programozás alatt lehúzva). Bit-bang SPI ISP; forrás `.hex` (Intel HEX) vagy `.bin` a LittleFS-ből. Lábak Kconfig-gal állíthatók (`CONFIG_AVR_ISP_*_GPIO`).
 
 > **A cél-csatlakozó nRST nélkül:** SWCLK, SWDIO, GND, (VTARGET sense). A reset vonalra nincs szükség — a csatlakozás SYSRESETREQ-kel megy (lásd lejjebb).
 
