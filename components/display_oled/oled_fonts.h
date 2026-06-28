@@ -6,7 +6,7 @@
  * vannak (a flash-ben ott élnek a `const` adatok, közvetlen indexeléssel).
  *
  * Két font:
- *   1) 5x7 ASCII font (0x20..0x5F) — menü/feliratokhoz, skálázva rajzolható.
+ *   1) 5x7 ASCII font (0x20..0x7E, teljes nyomtatható ASCII) — menü/feliratokhoz, skálázva rajzolható.
  *   2) Swis721 19x24 nagy szám-font (char 46..58: '.', '/', 0-9, ':') — a
  *      számláló / százalék / MM:SS kijelzéshez.
  */
@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 /* ---- 5x7 ASCII font ---- */
-/* 96 glyph, 0x20..0x5F, 5 oszlop / karakter, oszloponként alsó bit = felső pixel. */
+/* 96 glyph, 0x20..0x7F (a 0x7F üres), 5 oszlop / karakter, oszloponként alsó bit = felső pixel. */
 extern const uint8_t OLED_FONT5X7[96][5];
 
 /* A kért karakter 5 bájtos oszlop-adatára mutató pointer (nem támogatott -> szóköz). */

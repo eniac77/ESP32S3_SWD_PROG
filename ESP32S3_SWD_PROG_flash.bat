@@ -10,7 +10,7 @@ rem ==========================================================================
 setlocal
 
 rem --- Allitsd at ide a sajat COM portodat ---
-set "PORT=COM10"
+set "PORT=COM18"
 if not "%~1"=="" set "PORT=%~1"
 if "%PORT%"=="" set /p PORT=COM port pl. COM10:
 
