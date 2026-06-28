@@ -42,6 +42,42 @@
 
 static const char *TAG = "web_ui";
 
+/* ---- Beágyazott web-asszettek (EMBED_FILES a CMakeLists-ben) ----
+ * Ezek az app-binárisba kerülnek, így a felület app-only flash után is
+ * működik (üres /lfs/www esetén). A szimbólumneveket az IDF a fájlnévből
+ * képzi: _binary_<nev>_<ext>_start / _end. */
+extern const uint8_t index_html_start[] asm("_binary_index_html_start");
+extern const uint8_t index_html_end[]   asm("_binary_index_html_end");
+extern const uint8_t app_css_start[]     asm("_binary_app_css_start");
+extern const uint8_t app_css_end[]       asm("_binary_app_css_end");
+extern const uint8_t app_js_start[]      asm("_binary_app_js_start");
+extern const uint8_t app_js_end[]        asm("_binary_app_js_end");
+
+/* Beágyazott asszet leíró: a /lfs/www-relatív útvonal -> tartalom + MIME. */
+typedef struct {
+    const char    *rel;       /* pl. "/www/index.html" */
+    const uint8_t *start;
+    const uint8_t *end;
+    const char    *mime;
+} embedded_asset_t;
+
+static const embedded_asset_t k_embedded_assets[] = {
+    { "/www/index.html", index_html_start, index_html_end, "text/html" },
+    { "/www/app.css",    app_css_start,    app_css_end,    "text/css" },
+    { "/www/app.js",     app_js_start,     app_js_end,     "application/javascript" },
+};
+
+/* A kért /www-relatív útvonalhoz tartozó beágyazott asszet (vagy NULL). */
+static const embedded_asset_t *find_embedded_asset(const char *rel)
+{
+    for (size_t i = 0; i < sizeof(k_embedded_assets) / sizeof(k_embedded_assets[0]); i++) {
+        if (strcmp(rel, k_embedded_assets[i].rel) == 0) {
+            return &k_embedded_assets[i];
+        }
+    }
+    return NULL;
+}
+
 /* ---- belső állapot ---- */
 
 #define WS_MAX_CLIENTS    8        /* egyidejű WS kliensek max száma */
@@ -208,14 +244,21 @@ static esp_err_t send_file_chunked(httpd_req_t *req, const char *full_path)
     return ret;
 }
 
-/* Statikus fájl a /lfs/www alól (wildcard GET), vagy fallback HTML. */
+/* Statikus fájl a /lfs/www alól (wildcard GET), beágyazott fallbackkel.
+ *
+ * SZÁNDÉKOS: a statikus kiszolgáláson NINCS token-auth — a UI mindig
+ * betöltődhessen (az app.css/app.js/index.html publikus). A mutáló /api
+ * végpontok és a /ws továbbra is auth_check-elve maradnak.
+ *
+ * Kiszolgálási prioritás:
+ *   1) /lfs/www/<path>  — ha a storage-ra flashelt fájl létezik, AZ nyer
+ *      (frissíthető a felület újraflashelés nélkül).
+ *   2) beágyazott asszet — ha a fájl a beágyazottak egyike (index/css/js).
+ *   3) k_fallback_html — minimál UI, ha sem fájl, sem beágyazott nincs.
+ */
 static esp_err_t static_get_handler(httpd_req_t *req)
 {
-    if (auth_check(req) != ESP_OK) {
-        return send_json_error(req, "401 Unauthorized", "unauthorized");
-    }
-
-    /* URI -> /lfs/www/<uri> ; "/" -> index.html */
+    /* URI -> /www/<uri> ; "/" -> index.html */
     const char *uri = req->uri;
     char rel[160];
     if (strcmp(uri, "/") == 0) {
@@ -228,15 +271,24 @@ static esp_err_t static_get_handler(httpd_req_t *req)
         snprintf(rel, sizeof(rel), "/www%.*s", (int)ulen, uri);
     }
 
+    /* 1) Elsőként a /lfs/www-ből (a storage-flashelt verzió felülírja a beágyazottat). */
     char full[200];
     if (build_lfs_path(rel, full, sizeof(full)) == ESP_OK) {
         httpd_resp_set_type(req, mime_from_path(full));
         esp_err_t r = send_file_chunked(req, full);
         if (r == ESP_OK) return ESP_OK;
-        /* ha nem létezett a fájl -> fallback (csak a gyökérnél van értelme) */
+        /* ESP_ERR_NOT_FOUND (nincs fájl) -> beágyazott/fallback alább */
     }
 
-    /* Fallback minimál UI (nincs UI-asset feltöltve). */
+    /* 2) Beágyazott asszet (app-only flash után ez adja a teljes UI-t). */
+    const embedded_asset_t *a = find_embedded_asset(rel);
+    if (a) {
+        httpd_resp_set_type(req, a->mime);
+        return httpd_resp_send(req, (const char *)a->start,
+                               (size_t)(a->end - a->start));
+    }
+
+    /* 3) Fallback minimál UI (sem fájl, sem beágyazott asszet nincs). */
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, k_fallback_html, HTTPD_RESP_USE_STRLEN);
 }
