@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <sys/param.h>
 
 #include "esp_log.h"
@@ -113,6 +114,24 @@ static const char *mime_from_path(const char *path)
 }
 
 /* Query paraméter kiolvasása az URL-ből (méret-ellenőrzött). */
+/* URL percent-dekódolás helyben (%XX -> bájt; '+' marad). A httpd_query_key_value
+   NEM dekódol, a böngésző viszont kódolja a path-ot (pl. '/' -> %2F), ezért
+   ez nélkülözhetetlen — különben "%2Ffw%2Fx.bin" néven a gyökérbe kerülne. */
+static void url_decode(char *s)
+{
+    char *o = s;
+    for (char *p = s; *p; p++) {
+        if (*p == '%' && isxdigit((unsigned char)p[1]) && isxdigit((unsigned char)p[2])) {
+            char h[3] = { p[1], p[2], 0 };
+            *o++ = (char)strtol(h, NULL, 16);
+            p += 2;
+        } else {
+            *o++ = *p;
+        }
+    }
+    *o = '\0';
+}
+
 static esp_err_t get_query_param(httpd_req_t *req, const char *key, char *out, size_t out_len)
 {
     char *qbuf = NULL;
@@ -123,6 +142,7 @@ static esp_err_t get_query_param(httpd_req_t *req, const char *key, char *out, s
     esp_err_t err = ESP_ERR_NOT_FOUND;
     if (httpd_req_get_url_query_str(req, qbuf, qlen) == ESP_OK) {
         if (httpd_query_key_value(qbuf, key, out, out_len) == ESP_OK) {
+            url_decode(out);   /* %2F -> '/', %20 -> ' ', stb. */
             err = ESP_OK;
         }
     }
