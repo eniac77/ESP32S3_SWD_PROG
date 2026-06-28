@@ -36,6 +36,7 @@
 #include "target_state.h"
 #include "target_serial.h"
 #include "prog_session.h"   /* SWD flash orchestráció (prog_session_flash_file) */
+#include "avr_isp.h"        /* AVR ISP programozó (ATtiny stb.) — detect + flash */
 
 #include "freertos/task.h"
 
@@ -594,6 +595,168 @@ static esp_err_t api_program_handler(httpd_req_t *req)
 }
 
 /* ===================================================================== */
+/* REST: AVR ISP — POST /api/avr/detect, POST /api/avr/program            */
+/* ===================================================================== */
+
+/* AVR foglaltság-jelző: egyszerre csak egy AVR-flash futhat. Atomi módon
+   állítjuk be/törjük az s_ws_mux-tól független saját mutexszel. A flag a
+   foglaltságot jelzi (true = fut egy AVR-flash). */
+static SemaphoreHandle_t s_avr_mux = NULL;
+static bool s_avr_busy = false;
+
+/* Lazy init a foglaltság-mutexhez (a web_ui_init-ben is létrehozzuk, de
+   biztos ami biztos). Visszaadja true-t, ha sikerült megszerezni a foglalást. */
+static bool avr_try_acquire(void)
+{
+    if (!s_avr_mux) return false;
+    bool acquired = false;
+    xSemaphoreTake(s_avr_mux, portMAX_DELAY);
+    if (!s_avr_busy) {
+        s_avr_busy = true;
+        acquired = true;
+    }
+    xSemaphoreGive(s_avr_mux);
+    return acquired;
+}
+
+static void avr_release(void)
+{
+    if (!s_avr_mux) return;
+    xSemaphoreTake(s_avr_mux, portMAX_DELAY);
+    s_avr_busy = false;
+    xSemaphoreGive(s_avr_mux);
+}
+
+/* POST /api/avr/detect — egyszeri signature-olvasás, JSON eredmény. */
+static esp_err_t api_avr_detect_handler(httpd_req_t *req)
+{
+    if (auth_check(req) != ESP_OK) {
+        return send_json_error(req, "401 Unauthorized", "unauthorized");
+    }
+
+    avr_dev_t dev = {0};
+    esp_err_t r = avr_isp_detect(&dev);
+    if (r != ESP_OK) {
+        /* Detektálás bukott (nincs cél / nincs válasz) — HTTP 200, ok=false,
+           a meglévő cfg-stílustól eltérően itt strukturált hiba kell az UI-nak. */
+        ESP_LOGW(TAG, "avr detect hiba: %s", esp_err_to_name(r));
+        httpd_resp_set_type(req, "application/json");
+        char body[96];
+        snprintf(body, sizeof(body),
+                 "{\"ok\":false,\"error\":\"%s\"}", esp_err_to_name(r));
+        return httpd_resp_sendstr(req, body);
+    }
+
+    /* Siker: sig 3 bájt hexben, name (vagy "" ha NULL), flash, known. */
+    char body[192];
+    snprintf(body, sizeof(body),
+             "{\"ok\":true,"
+             "\"sig\":\"%02X %02X %02X\","
+             "\"name\":\"%s\","
+             "\"flash\":%u,"
+             "\"known\":%s}",
+             dev.sig[0], dev.sig[1], dev.sig[2],
+             dev.name ? dev.name : "",
+             (unsigned)dev.flash_size,
+             dev.known ? "true" : "false");
+
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, body);
+}
+
+/* AVR progress callback: a flash-taszk kontextusából hívódik. A fázis/% -ból
+   JSON-t épít és a /ws klienseknek broadcastolja ("avr_prog" típus). */
+static void web_avr_cb(const char *phase, int percent, void *ctx)
+{
+    (void)ctx;
+    int pct = percent;
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+
+    char json[192];
+    snprintf(json, sizeof(json),
+             "{\"type\":\"avr_prog\",\"phase\":\"%s\",\"percent\":%d}",
+             phase ? phase : "?", pct);
+
+    web_ui_ws_broadcast(json);
+}
+
+/* Külön FreeRTOS taszk: lefuttatja a szinkron AVR-flash-t, majd kilép.
+   Az argumentum egy malloc-olt /lfs-abszolút útvonal (a taszk free-zi).
+   A végén elengedi a foglaltság-flaget, és záró done/failed WS-üzenetet küld
+   (az avr_isp cb nem ad explicit done/failed fázist). */
+static void web_avr_task(void *arg)
+{
+    char *full = (char *)arg;
+    ESP_LOGI(TAG, "AVR flash taszk indul: %s", full);
+
+    esp_err_t err = avr_isp_flash_file(full, web_avr_cb, NULL);
+
+    char json[192];
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "AVR flash kesz: %s", full);
+        snprintf(json, sizeof(json),
+                 "{\"type\":\"avr_prog\",\"phase\":\"done\","
+                 "\"percent\":100,\"message\":\"kesz\"}");
+    } else {
+        ESP_LOGE(TAG, "AVR flash hiba: %s", esp_err_to_name(err));
+        snprintf(json, sizeof(json),
+                 "{\"type\":\"avr_prog\",\"phase\":\"failed\","
+                 "\"percent\":100,\"message\":\"%s\"}", esp_err_to_name(err));
+    }
+    web_ui_ws_broadcast(json);
+
+    free(full);
+    avr_release();
+    vTaskDelete(NULL);
+}
+
+/* POST /api/avr/program?file=/fw/x.hex — taszkban indítja az AVR-flash-t. */
+static esp_err_t api_avr_program_handler(httpd_req_t *req)
+{
+    if (auth_check(req) != ESP_OK) {
+        return send_json_error(req, "401 Unauthorized", "unauthorized");
+    }
+
+    /* Ha már fut egy AVR-flash, ne indítsunk másodikat (atomi foglalás). */
+    if (!avr_try_acquire()) {
+        return send_json_error(req, "409 Conflict", "busy");
+    }
+
+    /* 'file' query param (pl. "/fw/x.hex"), majd /lfs alá normalizálva. */
+    char file[160] = {0};
+    if (get_query_param(req, "file", file, sizeof(file)) != ESP_OK) {
+        avr_release();
+        return send_json_error(req, "400 Bad Request", "missing file");
+    }
+    char full[200];
+    if (build_lfs_path(file, full, sizeof(full)) != ESP_OK) {
+        avr_release();
+        return send_json_error(req, "400 Bad Request", "invalid file");
+    }
+
+    char *path_arg = strdup(full);
+    if (!path_arg) {
+        avr_release();
+        return send_json_error(req, "500 Internal Server Error", "out of memory");
+    }
+
+    /* Külön taszk -> a handler azonnal visszatér (202), a progress a /ws-en.
+       A taszk free-zi a path_arg-ot és elengedi a foglaltság-flaget. */
+    BaseType_t ok = xTaskCreate(web_avr_task, "web_avr", 8192, path_arg, 5, NULL);
+    if (ok != pdPASS) {
+        free(path_arg);
+        avr_release();
+        return send_json_error(req, "500 Internal Server Error", "task create failed");
+    }
+
+    ESP_LOGI(TAG, "AVR flash kerelem: %s", full);
+    httpd_resp_set_status(req, "202 Accepted");
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, "{\"started\":true}");
+}
+
+/* ===================================================================== */
 /* WebSocket /ws                                                          */
 /* ===================================================================== */
 
@@ -778,6 +941,14 @@ esp_err_t web_ui_init(void)
     s_ws_mux = xSemaphoreCreateMutex();
     if (!s_ws_mux) return ESP_ERR_NO_MEM;
 
+    /* AVR foglaltság-mutex (egyszerre egy AVR-flash). */
+    s_avr_mux = xSemaphoreCreateMutex();
+    if (!s_avr_mux) {
+        vSemaphoreDelete(s_ws_mux);
+        s_ws_mux = NULL;
+        return ESP_ERR_NO_MEM;
+    }
+
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 16;        /* megemelt handler-szám */
     config.lru_purge_enable = true;      /* régi kapcsolatok ürítése */
@@ -790,6 +961,8 @@ esp_err_t web_ui_init(void)
         ESP_LOGE(TAG, "httpd_start hiba: %s", esp_err_to_name(err));
         vSemaphoreDelete(s_ws_mux);
         s_ws_mux = NULL;
+        vSemaphoreDelete(s_avr_mux);
+        s_avr_mux = NULL;
         return err;
     }
 
@@ -801,6 +974,10 @@ esp_err_t web_ui_init(void)
     reg(s_server, "/api/program",  HTTP_POST,   api_program_handler,  false);
     reg(s_server, "/api/cfg/pull", HTTP_POST,   api_cfg_pull_handler, false);
     reg(s_server, "/api/cfg/push", HTTP_POST,   api_cfg_push_handler, false);
+
+    /* AVR ISP végpontok (a wildcard statikus handler ELÉ) */
+    reg(s_server, "/api/avr/detect",  HTTP_POST, api_avr_detect_handler,  false);
+    reg(s_server, "/api/avr/program", HTTP_POST, api_avr_program_handler, false);
 
     /* WebSocket */
     reg(s_server, "/ws", HTTP_GET, ws_handler, true);

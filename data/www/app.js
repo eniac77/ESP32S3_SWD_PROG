@@ -262,6 +262,12 @@ const PHASE_HU = {
   program: "programozás", verify: "ellenőrzés", done: "kész", failed: "hiba",
 };
 
+/* AVR fázis-feliratok (az avr_isp cb sztring-fázisaihoz + done/failed). */
+const AVR_PHASE_HU = {
+  "Torles": "törlés", "Iras": "írás", "Ellenor.": "ellenőrzés",
+  "done": "kész", "failed": "hiba",
+};
+
 function setConn(on) {
   const c = $("#conn");
   c.dataset.state = on ? "on" : "off";
@@ -297,6 +303,22 @@ function handleProg(d) {
   else if (phase === "failed") { toast("Flash hiba: " + (d.message || ""), "err"); }
 }
 
+/* AVR flash haladás a /ws "avr_prog" üzenetekből (külön az SWD "prog"-tól). */
+function handleAvrProg(d) {
+  $("#avrProgWrap").hidden = false;
+  const phase = d.phase || "—";
+  const pct = Math.max(0, Math.min(100, Number(d.percent) || 0));
+  const badge = $("#avrPhase");
+  badge.textContent = AVR_PHASE_HU[phase] || phase;
+  badge.dataset.phase = phase;
+  $("#avrMsg").textContent = d.message || "";
+  $("#avrFill").style.width = pct + "%";
+  $("#avrPct").textContent = pct + "%";
+
+  if (phase === "done") { toast("AVR flash kész.", "ok"); }
+  else if (phase === "failed") { toast("AVR flash hiba: " + (d.message || ""), "err"); }
+}
+
 let ws = null;
 let reconnectTimer = null;
 
@@ -320,12 +342,106 @@ function connectWS() {
     try { d = JSON.parse(ev.data); } catch (e) { return; }
     if (d.type === "state") handleState(d);
     else if (d.type === "prog") handleProg(d);
+    else if (d.type === "avr_prog") handleAvrProg(d);
   };
 }
 
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
   reconnectTimer = setTimeout(connectWS, 2000);   // automatikus újracsatlakozás
+}
+
+/* ===================================================================== */
+/* AVR ISP (ATtiny) — detektálás + flash a /fw fájlokból                 */
+/* ===================================================================== */
+
+/* A /fw lista betöltése a fájlválasztó <select>-be (.hex/.bin). */
+async function loadAvrFiles() {
+  const sel = $("#avrFile");
+  if (!sel) return;
+  const prev = sel.value;
+  try {
+    const r = await apiFetch("/api/files?dir=fw");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const items = await r.json();
+    const fws = Array.isArray(items)
+      ? items.filter((f) => /\.(hex|bin)$/i.test(f.name))
+      : [];
+    sel.innerHTML = '<option value="">— válassz .hex/.bin fájlt (/fw) —</option>';
+    for (const f of fws) {
+      const opt = document.createElement("option");
+      opt.value = f.name;
+      opt.textContent = f.name + " (" + fmtBytes(f.size) + ")";
+      sel.appendChild(opt);
+    }
+    if (prev) sel.value = prev;   // ha még létezik, megtartjuk a választást
+  } catch (e) {
+    sel.innerHTML = '<option value="">— lista hiba —</option>';
+  }
+}
+
+/* POST /api/avr/detect -> SIG / név / flash kijelzése. */
+async function avrDetect(btn) {
+  if (btn) btn.disabled = true;
+  $("#avrSig").textContent = "…";
+  $("#avrName").textContent = "—";
+  $("#avrFlash").textContent = "—";
+  try {
+    const r = await apiFetch("/api/avr/detect", { method: "POST" });
+    if (r.status === 401) return;   // a 401 üzenetet az apiFetch már kiírta
+    const d = await r.json();
+    if (!d || !d.ok) {
+      $("#avrSig").textContent = "—";
+      toast("AVR detektálás sikertelen: " + ((d && d.error) || "nincs cél"), "err");
+      return;
+    }
+    $("#avrSig").textContent = d.sig || "—";
+    $("#avrName").textContent = d.known ? (d.name || "ismeretlen")
+                                        : (d.name || "ismeretlen signature");
+    $("#avrFlash").textContent = (d.flash != null) ? fmtBytes(d.flash) : "—";
+    toast("AVR cél: " + (d.name || d.sig || "ismeretlen"), "ok");
+  } catch (e) {
+    $("#avrSig").textContent = "—";
+    toast("AVR detektálás hiba.", "err");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* POST /api/avr/program?file=/fw/<név> -> taszk indul, haladás a /ws-en. */
+async function avrFlash(btn) {
+  const name = $("#avrFile").value;
+  if (!name) { toast("Válassz fájlt az AVR flasheléshez!", "err"); return; }
+  if (!confirm("AVR flashelés indítása: /fw/" + name + " ?")) return;
+  if (btn) btn.disabled = true;
+  try {
+    const r = await apiFetch("/api/avr/program?file=/fw/" + encodeURIComponent(name),
+                             { method: "POST" });
+    if (r.status === 401) {
+      return;   // a 401 üzenetet az apiFetch már kiírta
+    } else if (r.status === 409) {
+      toast("Egy AVR flash folyamat már fut (busy).", "err");
+    } else if (r.status === 202 || r.ok) {
+      toast("AVR flash elindítva: " + name + " — haladás a folyamatsávon.", "ok");
+      $("#avrProgWrap").hidden = false;
+    } else {
+      throw new Error("HTTP " + r.status);
+    }
+  } catch (e) {
+    toast("AVR flash indítás sikertelen.", "err");
+  } finally {
+    setTimeout(() => { if (btn) btn.disabled = false; }, 1500);
+  }
+}
+
+function setupAvr() {
+  const det = $("#avrDetect");
+  const refresh = $("#avrRefresh");
+  const flash = $("#avrFlashBtn");
+  if (det) det.onclick = () => avrDetect(det);
+  if (refresh) refresh.onclick = () => loadAvrFiles();
+  if (flash) flash.onclick = () => avrFlash(flash);
+  loadAvrFiles();
 }
 
 /* ===================================================================== */
@@ -348,6 +464,7 @@ function setupToken() {
     connectWS();
     loadFiles("fw");
     loadFiles("cfg");
+    loadAvrFiles();
   };
 
   if (clear) {
@@ -359,6 +476,7 @@ function setupToken() {
       connectWS();
       loadFiles("fw");
       loadFiles("cfg");
+      loadAvrFiles();
     };
   }
 }
@@ -367,6 +485,7 @@ function init() {
   setupToken();
   setupUploader("fw", "fwFile", "fwUpload", "fwUpStatus");
   setupUploader("cfg", "cfgFile", "cfgUpload", "cfgUpStatus");
+  setupAvr();
 
   document.querySelectorAll("[data-refresh]").forEach((b) => {
     b.onclick = () => loadFiles(b.dataset.refresh);

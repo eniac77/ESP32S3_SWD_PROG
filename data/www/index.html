@@ -102,6 +102,36 @@
       <ul class="filelist" id="cfgList"><li class="empty">Betöltés…</li></ul>
     </section>
 
+    <!-- AVR ISP (ATtiny) — detektálás + flash a /fw fájlokból -->
+    <section class="card span2">
+      <div class="card-head">
+        <h2>AVR ISP (ATtiny)</h2>
+        <button class="btn ghost" id="avrDetect">Detektálás</button>
+      </div>
+
+      <div class="state-grid">
+        <div class="kv"><span class="k">Signature</span><span class="v" id="avrSig">&mdash;</span></div>
+        <div class="kv"><span class="k">Eszköz</span><span class="v" id="avrName">&mdash;</span></div>
+        <div class="kv"><span class="k">Flash</span><span class="v" id="avrFlash">&mdash;</span></div>
+      </div>
+
+      <div class="uploader">
+        <select id="avrFile"><option value="">— válassz .hex/.bin fájlt (/fw) —</option></select>
+        <button class="btn ghost" id="avrRefresh">Lista frissítés</button>
+        <button class="btn flash" id="avrFlashBtn">AVR flash</button>
+      </div>
+
+      <!-- AVR flash haladásjelző (külön a SWD "prog"-tól) -->
+      <div id="avrProgWrap" hidden>
+        <div class="prog-meta">
+          <span class="badge" id="avrPhase">&mdash;</span>
+          <span id="avrMsg" class="muted"></span>
+        </div>
+        <div class="bar"><div class="bar-fill" id="avrFill" style="width:0%"></div></div>
+        <div class="prog-foot"><span id="avrPct">0%</span></div>
+      </div>
+    </section>
+
   </main>
 
   <div id="toast" class="toast" hidden></div>
