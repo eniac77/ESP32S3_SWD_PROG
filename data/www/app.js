@@ -355,7 +355,7 @@ function scheduleReconnect() {
 /* AVR ISP (ATtiny) — detektálás + flash a /fw fájlokból                 */
 /* ===================================================================== */
 
-/* A /fw lista betöltése a fájlválasztó <select>-be (.hex/.bin). */
+/* A /fw lista betöltése a fájlválasztó <select>-be (.hex/.bin/.elf). */
 async function loadAvrFiles() {
   const sel = $("#avrFile");
   if (!sel) return;
@@ -365,9 +365,9 @@ async function loadAvrFiles() {
     if (!r.ok) throw new Error("HTTP " + r.status);
     const items = await r.json();
     const fws = Array.isArray(items)
-      ? items.filter((f) => /\.(hex|bin)$/i.test(f.name))
+      ? items.filter((f) => /\.(hex|bin|elf)$/i.test(f.name))
       : [];
-    sel.innerHTML = '<option value="">— válassz .hex/.bin fájlt (/fw) —</option>';
+    sel.innerHTML = '<option value="">— válassz .hex/.bin/.elf fájlt (/fw) —</option>';
     for (const f of fws) {
       const opt = document.createElement("option");
       opt.value = f.name;
