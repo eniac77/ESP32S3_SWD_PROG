@@ -17,7 +17,15 @@ Ez a fájl a Claude Code (és más AI-asszisztensek) számára ad iránymutatás
 
 ## Állapot
 
-A **teljes szoftveres váz kész és zöldre fordul** (esp32s3). Mind a 16 komponens implementálva, az end-to-end flash-út be van kötve. A teljes spec/lábkiosztás/ütemterv a tervben: `reference/ESP32S3_SWD_PROG_Plan.md` — **implementáció előtt olvasd el**.
+🎯 **MÉRFÖLDKŐ (2026-06-29): működő SWD-flash valódi hardveren.** Az eszköz felprogramozott és **ellenőrzött** egy valódi STM32F030x8-at (DEV_ID 0x440), 29 KB-ot `0x08000000`-ra, nRST nélkül (SYSRESETREQ), enkóderről indítva, **~3,1 s** alatt, megbízhatóan. A teljes történet (bring-up hibalánc + javítások, a glitch gyökéroka = **WiFi rádió zaja**, és a 214 s → 3,1 s sebesség-optimalizálás, ~70×): **[reference/MILESTONE_SWD_HW.md](reference/MILESTONE_SWD_HW.md) — olvasd el SWD-munka előtt.**
+
+A **teljes szoftveres váz kész és zöldre fordul** (esp32s3). Mind a 16 komponens implementálva, az end-to-end flash-út be van kötve **és HW-n igazolt (F030)**. A teljes spec/lábkiosztás/ütemterv a tervben: `reference/ESP32S3_SWD_PROG_Plan.md` — **implementáció előtt olvasd el**.
+
+**SWD-munka kritikus tudnivalók (HW-n megtanulva, részletek a mérföldkő-doksiban):**
+- A flash/detect idejére a **WiFi rádiót le KELL állítani** (`net_wifi_radio_pause`) — különben a rádió zaja glitch-eli a bit-bang SWD-t (re-sync 292 vs 2).
+- SWDIO turnaround tri-state: `GPIO.func_out_sel_cfg[SWDIO].oen_sel=1` kell (dedic_gpio + GPIO_ENABLE).
+- A read-mintavétel a **low fázisban** van; az írás után **trailing idle** kell; protokoll-hibára **`dp_resync` + retry** (tétlen szünettel old a beragadt vonal).
+- Sebesség: bring-up 300 kHz, adatfázis `freq=0`; a flash alatt **csendes log** (INFO) és **OLED progress-throttle** (250 ms) — utóbbi volt a legnagyobb rejtett lassító.
 
 Kész és fordul: `swd_phy`, `adiv5`, `cortexm_debug`, `flm_runner`, `flm_blobs` (üres tábla), `target_db` (42 STM32 tag), `prog_session` (end-to-end), `storage_lfs`, `display_oled`, `input_enc`, `ui`, `target_serial`, `target_state`, `net_wifi`, `web_ui`, `ftp_srv`. Tool: `tools/flm_extract.py`.
 
@@ -29,10 +37,13 @@ Kész és fordul: `swd_phy`, `adiv5`, `cortexm_debug`, `flm_runner`, `flm_blobs`
 - **Web-UI**: `data/www/{index.html,app.css,app.js}` (vanilla, sötét téma, magyar). A `main/CMakeLists.txt` `littlefs_create_partition_image(storage ../data FLASH_IN_PROJECT)`-tal a `data/` a `storage` partícióra kerül (`idf.py flash` felírja). Fájllista/feltöltés/flash/cfg + élő WS (`type:"state"`/`"prog"`).
 - **Host tesztek** (`tests/`, PC-n futnak, nincs HW): `python -m unittest discover -s tests -v` (IDF python; pyelftools). 11 teszt: flm_extract ST-parser valódi `.stldr`-en, `flm_generated`↔`target_db` konzisztencia, CRC16 golden-vektorok. Natív host C fordító nincs → a C-logika golden-vektorral/konzisztenciával fedett.
 
-**Hátralévő — fizikai eszközt igényel, szoftveresen nem zárható le:**
-- **HW-validáció**: a SWD/FLM mag valódi STM32-n (F411/0x431 ajánlott) + logikai analizátorral (DPIDR/IDCODE; A0–A5 kész-kritériumok). Az ST `Init`/`Verify` visszatérési szemantikáját élesben kell igazolni.
-- **Kész (HW nélkül lezárható):** F-size reg címek (RM-mel), web token-auth (`WEB_UI_TOKEN`, default nyílt), UI „Cél info" detektáló, RDP-szint detektálás + hibakód-taxonómia (C2), opcionális hardveres nRST ág (`CONFIG_CORTEXM_HW_NRST`, default off), GitHub Actions CI (`.github/workflows/build.yml`: build + host tesztek).
-- **Hátralévő:** multi-család HW-teszt valódi célokon (C1); az L0/L1 RDP-regiszter címe még `RDP_REG_NONE` (ellenőrizni); minden „kész" funkció éles igazolása hardveren.
+**HW-validáció — ✅ A0 KÉSZ (F030/0x440):** a SWD/FLM mag valódi STM32-n bizonyítva (DPIDR/IDCODE, connect-under-reset SYSRESETREQ-kel, ST `Init`/erase/program/read-back verify), end-to-end flash + verify átment, ~3,1 s. Részletek: [reference/MILESTONE_SWD_HW.md](reference/MILESTONE_SWD_HW.md).
+
+**Hátralévő:**
+- **Multi-család HW-teszt** valódi célokon (C1): eddig csak F030 (0x440) igazolt élesben; F1/F3/F4/F7/L4/G0… DEV_ID-k tesztje hátra.
+- Az L0/L1 RDP-regiszter címe még `RDP_REG_NONE` (ellenőrizni).
+- (Opcionális, nem blokkoló) Program-fázis FLM-hívás regiszter-setup optimalizálás; SWCLK-max újramérése más bekötés/cél esetén.
+- **Kész (HW nélkül lezárt):** web token-auth (`WEB_UI_TOKEN`, default nyílt), UI „Cél info", RDP-detektálás + hibakód-taxonómia, opcionális HW-nRST ág (`CONFIG_CORTEXM_HW_NRST`, default off), CI (`.github/workflows/build.yml` — jelenleg csak `workflow_dispatch`, lásd lent).
 
 ## Architektúra elve (KRITIKUS, ne sértsd meg)
 
