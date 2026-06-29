@@ -282,7 +282,9 @@ static void ui_flash_cb(const prog_status_t *st, void *ctx)
     static int64_t s_last_us = 0;
     static int s_last_phase = -1;
     int64_t now = esp_timer_get_time();
-    if (!terminal && (int)st->phase == s_last_phase && (now - s_last_us) < 120000) {
+    /* 250 ms = ~4 fps progress: a feltöltés (program) ÉS az ellenőrzés (verify)
+       alatt is ritkán rajzol, hogy az OLED-flush (~25 ms) ne lassítsa a flash-t. */
+    if (!terminal && (int)st->phase == s_last_phase && (now - s_last_us) < 250000) {
         return;   /* túl gyakori -> kihagyjuk a rajzot */
     }
     s_last_us = now;
