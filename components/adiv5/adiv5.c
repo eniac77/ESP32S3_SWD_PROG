@@ -532,6 +532,16 @@ static void line_reset(void)
    (az első érvényes tranzakció) a hívóé. Bring-up és re-sync is ezt hívja. */
 static void swd_wire_select(void)
 {
+    /* 0) FLUSH (kritikus a re-sync helyreállításhoz): a vonalat elengedve
+       ~50 órajelet pörgetünk. Ha egy korábbi olvasás ACK-ját tévesen
+       mintáztuk, a cél közben még a 33 bites read-adatfázisát HAJTJA (azt
+       hiszi, OK-t küldött). Ha rögtön line reset-et adnánk, az átfedné a cél
+       meghajtását, és a visszafordulás után <50 tiszta reset-órajel maradna
+       -> a line reset nem regisztrálódna. A flush kiüríti az adatfázist és
+       megvárja a cél turnaroundját; ha a cél nem hajt, csak idle-t olvasunk. */
+    swd_phy_dir(false);
+    (void)swd_phy_seq_in(50);
+
     line_reset();
     /* JTAG-to-SWD switch: 0xE79E, LSB-first 16 bit (a vezetéken 0x9E, 0xE7). */
     ESP_LOGD(TAG, "JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)");

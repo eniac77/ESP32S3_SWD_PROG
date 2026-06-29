@@ -1,0 +1,116 @@
+I (2658) main: [SELFTEST] CEL OK: STM32F030x8/F05x
+I (2663) main: [SELFTEST]   DEV_ID = 0x440
+I (2667) main: [SELFTEST]   info   = STM32F030x8/F05x, 64 KB, RDP0
+I (21739) ui: flash indul: /lfs/fw/ECO_Lamella.bin
+I (21739) prog_session: flash indul: fájl='/lfs/fw/ECO_Lamella.bin' base=0x00000000
+I (21787) prog_session: fajl betoltve 29288 B (/lfs/fw/ECO_Lamella.bin)
+I (21815) cortexm: connect bring-up indul (nRST nélküli ág, SYSRESETREQ + vektor-catch)
+D (21815) cortexm: SWD bring-up (adiv5_connect) a futó magon
+D (21817) adiv5: SWD bring-up indul
+D (21820) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (21826) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (21831) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (21837) adiv5: 8 idle bit a switch után
+D (21839) adiv5: DPIDR olvasás (első érvényes tranzakció)
+V (21846) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (21850) adiv5: DP RD  addr=0x0 -> 0x0bb11477
+I (21854) adiv5: DPIDR = 0x0bb11477
+D (21857) adiv5: SELECT nullázás (AP0, bank0)
+V (21862) adiv5: SELECT írás 0x00000000 (APBANKSEL=0x0, DPBANKSEL=0x0)
+V (21870) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+V (21874) adiv5: DP WR  addr=0x8 <- 0x00000000
+D (21878) adiv5: ABORT: sticky hibák törlése (ABORT<-0x1e)
+V (21884) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+D (21889) adiv5: CTRL/STAT power-up kérés (CDBGPWRUPREQ | CSYSPWRUPREQ)
+V (21896) adiv5: raw WR  DP addr=0x4 ACK=OK adat=0x50000000
+V (21900) adiv5: DP WR  addr=0x4 <- 0x50000000
+D (21904) adiv5: várakozás CDBGPWRUPACK + CSYSPWRUPACK bitekre
+V (21911) adiv5: raw RD  DP addr=0x4 ACK=OK adat=0xf0000040
+V (21915) adiv5: DP RD  addr=0x4 -> 0xf0000040
+I (21920) adiv5: debug power-up OK (CTRL/STAT=0xf0000040, CDBGPWRUPACK+CSYSPWRUPACK megérkezett, 9449 us)
+D (21929) adiv5: AHB-AP CSW alapállapot beállítása
+V (21935) adiv5: raw RD  AP addr=0x0 ACK=OK adat=0x00000000
+V (21939) adiv5: AP RD (posted) off=0x00 -> prev=0x00000000
+V (21945) adiv5: raw RD  DP addr=0xc ACK=??? (0x0)
+W (21949) adiv5: DP RD  addr=0xc protokollhiba (ACK=0x0) -> re-sync #1
+W (21955) adiv5: re-sync #1: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+D (21963) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (21969) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (21974) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (21979) adiv5: 8 idle bit a switch után
+V (21982) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+D (21986) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (21992) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (21997) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22003) adiv5: 8 idle bit a switch után
+V (22006) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+D (22010) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22015) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22021) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22026) adiv5: 8 idle bit a switch után
+V (22029) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (22033) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
+V (22042) adiv5: raw RD  DP addr=0xc ACK=??? (0x0)
+W (22046) adiv5: DP RD  addr=0xc protokollhiba (ACK=0x0) -> re-sync #2
+W (22052) adiv5: re-sync #2: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+D (22060) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22065) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22071) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22076) adiv5: 8 idle bit a switch után
+V (22079) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+D (22083) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22089) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22094) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22100) adiv5: 8 idle bit a switch után
+V (22103) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+D (22107) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22112) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22118) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22123) adiv5: 8 idle bit a switch után
+V (22126) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (22130) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
+V (22139) adiv5: raw RD  DP addr=0xc ACK=??? (0x0)
+W (22143) adiv5: DP RD  addr=0xc protokollhiba (ACK=0x0) -> re-sync #3
+W (22149) adiv5: re-sync #3: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+D (22157) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22162) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22168) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22173) adiv5: 8 idle bit a switch után
+V (22176) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+D (22180) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22186) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22191) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22197) adiv5: 8 idle bit a switch után
+V (22200) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+D (22204) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22209) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22215) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22220) adiv5: 8 idle bit a switch után
+V (22223) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (22227) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
+V (22236) adiv5: raw RD  DP addr=0xc ACK=??? (0x0)
+W (22240) adiv5: DP RD  addr=0xc protokollhiba (ACK=0x0) -> re-sync #4
+W (22246) adiv5: re-sync #4: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+D (22254) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22259) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22265) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22270) adiv5: 8 idle bit a switch után
+V (22273) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+D (22277) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22283) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22288) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22293) adiv5: 8 idle bit a switch után
+V (22297) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+D (22301) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (22306) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (22312) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (22317) adiv5: 8 idle bit a switch után
+V (22320) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (22324) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
+V (22333) adiv5: raw RD  DP addr=0xc ACK=??? (0x0)
+W (22337) adiv5: DP RD  addr=0xc tartós protokollhiba (ACK=0x0)
+E (22342) adiv5: AHB-AP CSW init hiba: ESP_ERR_INVALID_RESPONSE
+E (22348) cortexm: adiv5_connect hiba: ESP_ERR_INVALID_RESPONSE
+E (22354) prog_session: connect-under-reset hiba: err=264 (nincs cél?)
+E (22388) ui: flash hiba: ESP_ERR_INVALID_RESPONSE
+I (32673) main: [heartbeat] up=30s, heap=221055B, psram=8382056B
