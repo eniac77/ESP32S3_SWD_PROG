@@ -21,3 +21,6 @@ __pycache__/
 # OS
 Thumbs.db
 .DS_Store
+
+# Soros logger kimenete (lokalis, nem verziokovetett)
+reference/monitorlog.txt
