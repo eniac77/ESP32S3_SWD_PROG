@@ -27,6 +27,7 @@
 #include "display_oled.h"
 #include "input_enc.h"
 #include "storage_lfs.h"
+#include "storage_src.h"
 #include "prog_session.h"   /* SWD flash orchestráció (prog_session_flash_file) */
 #include "avr_isp.h"        /* AVR ISP programozó (ATtiny13 stb.) — párhuzamos flow */
 
@@ -189,9 +190,10 @@ static void fw_collect_cb(const char *name, size_t size, bool is_dir, void *ctx)
 static void fw_list_load(void)
 {
     s_fw_count = 0;
-    storage_lfs_lock();
-    esp_err_t err = storage_lfs_list(STORAGE_LFS_BASE "/fw", fw_collect_cb, NULL);
-    storage_lfs_unlock();
+    /* Az aktív forrás /fw könyvtára (USB stick ha be van dugva, különben LFS). */
+    char dir[48];
+    snprintf(dir, sizeof(dir), "%s/fw", storage_src_base());
+    esp_err_t err = storage_src_list(dir, fw_collect_cb, NULL);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "fw lista hiba: %s", esp_err_to_name(err));
         /* hibánál üres listát mutatunk */
@@ -326,7 +328,7 @@ static void ui_flash_cb(const prog_status_t *st, void *ctx)
 static void ui_start_flash(void)
 {
     char fw_path[64];
-    snprintf(fw_path, sizeof(fw_path), STORAGE_LFS_BASE "/fw/%s", s_sel_name);
+    snprintf(fw_path, sizeof(fw_path), "%s/fw/%s", storage_src_base(), s_sel_name);
 
     ESP_LOGI(TAG, "flash indul: %s", fw_path);
     esp_err_t err = prog_session_flash_file(fw_path, 0, ui_flash_cb, NULL);
@@ -467,7 +469,7 @@ static void ui_avr_flash_cb(const char *phase, int percent, void *ctx)
 static void ui_avr_start_flash(void)
 {
     char fw_path[64];
-    snprintf(fw_path, sizeof(fw_path), STORAGE_LFS_BASE "/fw/%s", s_sel_name);
+    snprintf(fw_path, sizeof(fw_path), "%s/fw/%s", storage_src_base(), s_sel_name);
 
     ESP_LOGI(TAG, "AVR flash indul: %s", fw_path);
     esp_err_t err = avr_isp_flash_file(fw_path, ui_avr_flash_cb, NULL);
@@ -565,17 +567,22 @@ static void ui_render(void)
     case SCR_MENU:
         ui_draw_list("Fomenu", MENU_COUNT, s_sel, s_scroll, menu_item, "");
         break;
-    case SCR_FWLIST:
-        ui_draw_list("Program firmware", s_fw_count, s_sel, s_scroll,
-                     fw_item, "(nincs fw fajl)");
+    case SCR_FWLIST: {
+        /* USB-forrás esetén jelezzük a fejlécben (a lista a stickről jön). */
+        const char *t = (storage_src_active() == STORAGE_SRC_USB)
+                            ? "Firmware [USB]" : "Program firmware";
+        ui_draw_list(t, s_fw_count, s_sel, s_scroll, fw_item, "(nincs fw fajl)");
         break;
+    }
     case SCR_FWSEL:
         draw_fwsel();
         break;
-    case SCR_AVRLIST:
-        ui_draw_list("AVR ISP fajl", s_fw_count, s_sel, s_scroll,
-                     fw_item, "(nincs fajl)");
+    case SCR_AVRLIST: {
+        const char *t = (storage_src_active() == STORAGE_SRC_USB)
+                            ? "AVR fajl [USB]" : "AVR ISP fajl";
+        ui_draw_list(t, s_fw_count, s_sel, s_scroll, fw_item, "(nincs fajl)");
         break;
+    }
     case SCR_AVRSEL:
         draw_avrsel();
         break;

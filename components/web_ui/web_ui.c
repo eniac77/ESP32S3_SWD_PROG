@@ -34,6 +34,7 @@
 #include "freertos/semphr.h"
 
 #include "storage_lfs.h"
+#include "storage_src.h"
 #include "target_state.h"
 #include "target_serial.h"
 #include "prog_session.h"   /* SWD flash orchestráció (prog_session_flash_file) */
@@ -189,14 +190,19 @@ static esp_err_t auth_check(httpd_req_t *req)
     return ESP_FAIL;
 }
 
-/* Biztonságos path-összefűzés a /lfs alá. A bejövő "path" pl. "/fw/x.bin".
- * Megakadályozza a ".." kilépést. Sikerkor a teljes elérési utat adja. */
-static esp_err_t build_lfs_path(const char *rel, char *out, size_t out_len)
+/* Biztonságos path-összefűzés az AKTÍV forrás alá. A bejövő "path" pl.
+ * "/fw/x.bin" vagy "/cfg/x.cfg" -> az aktív forrásra (USB stick ha be van dugva,
+ * különben /lfs). KIVÉTEL: a "/www" (web-asszetek) MINDIG a belső LittleFS-en
+ * marad, függetlenül a forrástól. Megakadályozza a ".." kilépést. */
+static esp_err_t build_src_path(const char *rel, char *out, size_t out_len)
 {
     if (!rel || rel[0] == '\0') return ESP_ERR_INVALID_ARG;
     if (strstr(rel, "..")) return ESP_ERR_INVALID_ARG;   /* path traversal tiltás */
+    /* a web-felület fájljai (www) mindig belül vannak */
+    const char *base = (strncmp(rel, "/www", 4) == 0) ? STORAGE_LFS_BASE
+                                                       : storage_src_base();
     const char *sep = (rel[0] == '/') ? "" : "/";
-    int n = snprintf(out, out_len, "%s%s%s", STORAGE_LFS_BASE, sep, rel);
+    int n = snprintf(out, out_len, "%s%s%s", base, sep, rel);
     if (n < 0 || (size_t)n >= out_len) return ESP_ERR_INVALID_SIZE;
     return ESP_OK;
 }
@@ -235,16 +241,16 @@ static const char k_fallback_html[] =
  * A storage lockot a hívás teljes idejére fogja. */
 static esp_err_t send_file_chunked(httpd_req_t *req, const char *full_path)
 {
-    storage_lfs_lock();
+    storage_src_lock(full_path);
     FILE *f = fopen(full_path, "rb");
     if (!f) {
-        storage_lfs_unlock();
+        storage_src_unlock(full_path);
         return ESP_ERR_NOT_FOUND;
     }
     char *buf = malloc(UPLOAD_CHUNK);
     if (!buf) {
         fclose(f);
-        storage_lfs_unlock();
+        storage_src_unlock(full_path);
         return ESP_ERR_NO_MEM;
     }
     esp_err_t ret = ESP_OK;
@@ -257,7 +263,7 @@ static esp_err_t send_file_chunked(httpd_req_t *req, const char *full_path)
     }
     free(buf);
     fclose(f);
-    storage_lfs_unlock();
+    storage_src_unlock(full_path);
     if (ret == ESP_OK) {
         httpd_resp_send_chunk(req, NULL, 0);   /* lezáró chunk */
     }
@@ -293,7 +299,7 @@ static esp_err_t static_get_handler(httpd_req_t *req)
 
     /* 1) Elsőként a /lfs/www-ből (a storage-flashelt verzió felülírja a beágyazottat). */
     char full[200];
-    if (build_lfs_path(rel, full, sizeof(full)) == ESP_OK) {
+    if (build_src_path(rel, full, sizeof(full)) == ESP_OK) {
         httpd_resp_set_type(req, mime_from_path(full));
         esp_err_t r = send_file_chunked(req, full);
         if (r == ESP_OK) return ESP_OK;
@@ -365,14 +371,16 @@ static esp_err_t api_files_handler(httpd_req_t *req)
         return send_json_error(req, "400 Bad Request", "dir must be fw or cfg");
     }
 
+    /* Az aktív forrás (USB stick ha be van dugva, különben belső LFS) <dir>-je.
+       Ha van stick, a lista a stickről jön — a belsőt NEM mutatjuk. */
     char full[64];
-    snprintf(full, sizeof(full), "%s/%s", STORAGE_LFS_BASE, dir);
+    snprintf(full, sizeof(full), "%s/%s", storage_src_base(), dir);
 
     files_ctx_t c = { .json = NULL, .cap = 0, .len = 0, .first = true, .oom = false };
     files_append(&c, "[", 1);
 
-    /* A listázás a storage lock alatt (a storage_lfs_list maga fogja). */
-    esp_err_t lr = storage_lfs_list(full, files_list_cb, &c);
+    /* A listázás a storage lock alatt (a storage_src_list maga fogja). */
+    esp_err_t lr = storage_src_list(full, files_list_cb, &c);
     files_append(&c, "]", 1);
 
     if (c.oom || !c.json) {
@@ -385,6 +393,9 @@ static esp_err_t api_files_handler(httpd_req_t *req)
     }
 
     httpd_resp_set_type(req, "application/json");
+    /* A kliens jelezni tudja a felhasználónak, honnan jön a lista. */
+    httpd_resp_set_hdr(req, "X-Storage-Source",
+                       storage_src_active() == STORAGE_SRC_USB ? "usb" : "lfs");
     esp_err_t r = httpd_resp_send(req, c.json, c.len);
     free(c.json);
     return r;
@@ -404,7 +415,7 @@ static esp_err_t api_upload_handler(httpd_req_t *req)
         return send_json_error(req, "400 Bad Request", "missing path");
     }
     char full[200];
-    if (build_lfs_path(path, full, sizeof(full)) != ESP_OK) {
+    if (build_src_path(path, full, sizeof(full)) != ESP_OK) {
         return send_json_error(req, "400 Bad Request", "invalid path");
     }
 
@@ -415,10 +426,10 @@ static esp_err_t api_upload_handler(httpd_req_t *req)
 
     /* A teljes feltöltés idejére fogjuk a storage lockot, és a body-t
      * chunkonként olvassuk -> nem töltjük a teljes fájlt heapbe. */
-    storage_lfs_lock();
+    storage_src_lock(full);
     FILE *f = fopen(full, "wb");
     if (!f) {
-        storage_lfs_unlock();
+        storage_src_unlock(full);
         free(buf);
         return send_json_error(req, "500 Internal Server Error", "open failed");
     }
@@ -438,7 +449,7 @@ static esp_err_t api_upload_handler(httpd_req_t *req)
         remaining -= r;
     }
     fclose(f);
-    storage_lfs_unlock();
+    storage_src_unlock(full);
     free(buf);
 
     if (err != ESP_OK) {
@@ -466,7 +477,7 @@ static esp_err_t api_download_handler(httpd_req_t *req)
         return send_json_error(req, "400 Bad Request", "missing path");
     }
     char full[200];
-    if (build_lfs_path(path, full, sizeof(full)) != ESP_OK) {
+    if (build_src_path(path, full, sizeof(full)) != ESP_OK) {
         return send_json_error(req, "400 Bad Request", "invalid path");
     }
 
@@ -499,13 +510,13 @@ static esp_err_t api_delete_handler(httpd_req_t *req)
         return send_json_error(req, "400 Bad Request", "missing path");
     }
     char full[200];
-    if (build_lfs_path(path, full, sizeof(full)) != ESP_OK) {
+    if (build_src_path(path, full, sizeof(full)) != ESP_OK) {
         return send_json_error(req, "400 Bad Request", "invalid path");
     }
 
-    storage_lfs_lock();
+    storage_src_lock(full);
     int rc = remove(full);
-    storage_lfs_unlock();
+    storage_src_unlock(full);
 
     if (rc != 0) {
         return send_json_error(req, "404 Not Found", "delete failed");
@@ -643,7 +654,7 @@ static esp_err_t api_program_handler(httpd_req_t *req)
         return send_json_error(req, "400 Bad Request", "missing file");
     }
     char full[200];
-    if (build_lfs_path(file, full, sizeof(full)) != ESP_OK) {
+    if (build_src_path(file, full, sizeof(full)) != ESP_OK) {
         return send_json_error(req, "400 Bad Request", "invalid file");
     }
 
@@ -802,7 +813,7 @@ static esp_err_t api_avr_program_handler(httpd_req_t *req)
         return send_json_error(req, "400 Bad Request", "missing file");
     }
     char full[200];
-    if (build_lfs_path(file, full, sizeof(full)) != ESP_OK) {
+    if (build_src_path(file, full, sizeof(full)) != ESP_OK) {
         avr_release();
         return send_json_error(req, "400 Bad Request", "invalid file");
     }

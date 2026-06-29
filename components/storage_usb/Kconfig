@@ -1,0 +1,27 @@
+menu "USB MSC host (pendrive forras)"
+
+    config USB_MSC_HOST_ENABLE
+        bool "USB MSC host engedelyezese (pendrive-rol toltes)"
+        default n
+        help
+            Bekapcsolva a GPIO19/20 native USB pad OTG host modba kerul, es a
+            bedugott USB stick (MSC, FAT32) a /usb ala mountolodik. Ha van stick,
+            a firmware/config lista a stickrol jon (a belso LittleFS helyett).
+
+            FONTOS: a native USB pad megosztott, ezert a masodlagos
+            USB-Serial/JTAG konzolt KI kell kapcsolni
+            (CONFIG_ESP_CONSOLE_SECONDARY_NONE=y). Az elsodleges konzol UART0-n
+            marad; a flasheles/monitorozas ekkor kulso USB-UART-rol megy
+            (GPIO43/44). Kikapcsolva (default) semmi nem valtozik.
+
+    config USB_MSC_HOST_VBUS_GPIO
+        int "VBUS EN GPIO (load-switch / boost; -1 = nincs)"
+        depends on USB_MSC_HOST_ENABLE
+        range -1 48
+        default -1
+        help
+            Ha a panelen kulon 5 V VBUS load-switch vagy boost EN labja van,
+            add meg a GPIO szamat — init-kor magasra huzzuk (a stick tapja).
+            -1 eseten nem vezerlunk VBUS-t (mindig taplalt vagy nem szukseges).
+
+endmenu

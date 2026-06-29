@@ -15,6 +15,7 @@
 
 #include "target_state.h"
 #include "storage_lfs.h"
+#include "storage_src.h"
 
 static const char *TAG = "target_serial";
 
@@ -374,10 +375,11 @@ esp_err_t target_serial_command(uint8_t cmd, const uint8_t *payload, size_t payl
     return ESP_OK;
 }
 
-/* segéd: /lfs/cfg/<cfg_name> út összeállítása */
+/* segéd: <aktív forrás>/cfg/<cfg_name> út összeállítása (USB stick ha be van
+   dugva, különben a belső LittleFS) */
 static void ts_cfg_path(const char *cfg_name, char *out, size_t cap)
 {
-    snprintf(out, cap, STORAGE_LFS_BASE "/cfg/%s", cfg_name);
+    snprintf(out, cap, "%s/cfg/%s", storage_src_base(), cfg_name);
 }
 
 /* ----------------------------------------------------------------------
@@ -441,7 +443,7 @@ esp_err_t target_serial_cfg_pull(const char *cfg_name)
     if (ret == ESP_OK) {
         char path[128];
         ts_cfg_path(cfg_name, path, sizeof(path));
-        ret = storage_lfs_write_all(path, blob ? blob : (const void *)"", blob_len);
+        ret = storage_src_write_all(path, blob ? blob : (const void *)"", blob_len);
     }
 
     free(blob);
@@ -464,7 +466,7 @@ esp_err_t target_serial_cfg_push(const char *cfg_name)
 
     void   *buf = NULL;
     size_t  len = 0;
-    esp_err_t ret = storage_lfs_read_all(path, &buf, &len);
+    esp_err_t ret = storage_src_read_all(path, &buf, &len);
     if (ret != ESP_OK) {
         return ret;
     }

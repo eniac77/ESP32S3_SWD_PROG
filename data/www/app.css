@@ -235,6 +235,20 @@ a.btn { text-decoration: none; display: inline-block; }
 .toast.ok { border-color: rgba(46,160,67,.5); }
 .toast.err { border-color: rgba(248,81,73,.5); }
 
+/* ---- Forrásjelző badge (USB stick aktív) ---- */
+.srcbadge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 6px;
+  padding: 1px 8px;
+  font-size: .7rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #0b1020;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
 /* ---- Reszponzív ---- */
 @media (max-width: 720px) {
   .grid { grid-template-columns: 1fr; }

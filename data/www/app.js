@@ -89,10 +89,24 @@ async function loadFiles(dir) {
   try {
     const r = await apiFetch("/api/files?dir=" + dir);
     if (!r.ok) throw new Error("HTTP " + r.status);
+    /* Forrásjelző: USB stick bedugva esetén a lista a stickről jön. */
+    updateSrcBadge(dir, r.headers.get("X-Storage-Source"));
     const items = await r.json();
     renderFiles(dir, listEl, items);
   } catch (e) {
     listEl.innerHTML = '<li class="empty">Hiba a lista betöltésekor</li>';
+  }
+}
+
+/* A <h2> melletti badge: "USB" ha a stick az aktív forrás, különben elrejtve. */
+function updateSrcBadge(dir, src) {
+  const el = $("#" + dir + "Src");
+  if (!el) return;
+  if (src === "usb") {
+    el.textContent = "USB";
+    el.hidden = false;
+  } else {
+    el.hidden = true;
   }
 }
 

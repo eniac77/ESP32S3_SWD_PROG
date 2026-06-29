@@ -21,6 +21,7 @@
 #include "esp_log.h"
 #include "esp_heap_caps.h"
 #include "storage_lfs.h"
+#include "storage_src.h"
 
 static const char *TAG = "avr_isp";
 
@@ -496,10 +497,11 @@ esp_err_t avr_isp_flash_file(const char *path, avr_progress_cb cb, void *ctx)
 {
     if (!path) return ESP_ERR_INVALID_ARG;
 
-    /* 1) Forrásfájl beolvasása LittleFS-ből (a hívó NEM, mi free-zünk). */
+    /* 1) Forrásfájl beolvasása az aktív forrásból (LFS vagy USB; a hívó NEM,
+          mi free-zünk). A teljes képet egyben olvassuk a memóriába. */
     void *raw = NULL;
     size_t raw_len = 0;
-    esp_err_t err = storage_lfs_read_all(path, &raw, &raw_len);
+    esp_err_t err = storage_src_read_all(path, &raw, &raw_len);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Fajl olvasas hiba: %s (%s)", path, esp_err_to_name(err));
         return err;

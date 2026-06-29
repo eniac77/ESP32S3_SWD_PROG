@@ -16,6 +16,7 @@
 #include "freertos/task.h"
 
 #include "storage_lfs.h"
+#include "storage_src.h"
 #include "display_oled.h"
 #include "input_enc.h"
 #include "net_wifi.h"
@@ -132,6 +133,7 @@ void app_main(void)
 
     /* Platform alapok */
     TRY(storage_lfs_init());
+    TRY(storage_src_init());   /* opcionalis USB MSC forras (Kconfig-gated) */
     TRY(target_state_init());
 
     /* Helyi UI */

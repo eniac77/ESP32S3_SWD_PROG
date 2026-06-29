@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "storage_lfs.c"
+    SRCS "storage_lfs.c" "storage_src.c"
     INCLUDE_DIRS "."
-    REQUIRES littlefs
+    REQUIRES littlefs storage_usb
 )

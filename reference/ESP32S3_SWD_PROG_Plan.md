@@ -10,7 +10,7 @@
 
 > A két célinterfész fizikailag is külön van: **SWD** = firmware-flashelés (mag megállítva); **UART/RS485** = konfig + élő adat a *futó* célalkalmazással. Mindkettő a cél-csatlakozóra megy.
 
-> **USB host (pendrive)**: egyelőre **félretéve**, lásd a 18. (Future) szekciót — a forrás most LittleFS.
+> **USB host (pendrive)**: ✅ **implementálva** (Kconfig-gated, default ki) — lásd a 18. szekciót. Stick bedugva a `/fw`+`/cfg` forrás a stickről jön (FAT32), különben a belső LittleFS.
 
 > ⚠️ **KORREKCIÓ (nRST): a cél áramkörökön a reset (nRST) láb NEM elérhető**, ezért a rendszernek **nRST nélkül** kell programoznia. A lent több helyen szereplő „connect-under-reset (nRST assert/release)" helyett a tényleges megvalósítás **tisztán SWD-s**: halt → `DEMCR VC_CORERESET` → `AIRCR SYSRESETREQ` (szoftveres reset) → halt a reset-vektoron. Az ESP nRST=GPIO6 lába megmarad (fenntartva más célra), de a cél-csatlakozóra nem megy. Lásd `components/cortexm_debug/` és a CLAUDE.md-t.
 
@@ -381,9 +381,30 @@ A *futó* cél STM32-vel UART (vagy RS485 fél-duplex) felett, a SWD-től **füg
 
 ---
 
-## 18. Future — USB host (félretéve)
+## 18. USB host (pendrive forrás) — ✅ IMPLEMENTÁLVA (Kconfig-gated)
 
-Később, ha pendrive-ról is kell tölteni: `espressif/usb_host_msc` + FATFS a GPIO19/20 native USB padon (ezért hagytuk szabadon). **Pad-ütközés:** OTG host módban a USB-Serial-JTAG nem használható ugyanazon a lábon → konzol **UART0**-ra (GPIO43/44). A stickhez külön 5 V VBUS (boost/load switch). A `storage` réteg már absztrakt (`storage_lfs` mintára egy `storage_usb`), így a `prog_session` forrása csak konfig kérdése lesz.
+**Kész.** `espressif/usb_host_msc` + FATFS a GPIO19/20 native USB padon. Új
+komponens: `storage_usb` (USB host daemon + MSC class + FAT mount `/usb` alá,
+hot-plug). A forrásválasztást a `storage_src` réteg végzi (a `storage_lfs`
+komponensben): ha van mountolt stick, az aktív forrás `/usb`, különben `/lfs`;
+a list/read/write a path prefixe szerint a megfelelő backendre + lockra megy.
+
+- **Bekapcsolás:** `CONFIG_USB_MSC_HOST_ENABLE` (**default n**). Kikapcsolva
+  `storage_usb` stub → nulla viselkedésváltozás, a natív USB-Serial/JTAG
+  flash/monitor megmarad.
+- **Pad-ütközés:** OTG host módban a USB-Serial-JTAG nem használható (közös
+  USB-PHY) → `CONFIG_ESP_CONSOLE_SECONDARY_NONE=y`, konzol **UART0**-n
+  (GPIO43/44), flash/monitor külső USB-UART-ról. Fordítási `#error` véd, ha a
+  másodlagos USJ konzol bekapcsolva marad a USB host mellett.
+- **VBUS:** opcionális 5 V load-switch/boost EN láb: `CONFIG_USB_MSC_HOST_VBUS_GPIO`
+  (default -1 = nincs vezérlés).
+- **Viselkedés:** stick bedugva → a firmware (`/fw`) és config (`/cfg`) lista
+  (OLED + web) a stickről jön, a belső LittleFS-t elrejti; kihúzva visszaáll.
+  A **www** (web-asszetek) és az **FTP** szándékosan végig a belső LFS-en marad.
+- **Flash-biztonság:** a forrásfájlt a `prog_session`/`avr_isp` a SWD/WiFi-pause
+  ELŐTT teljesen PSRAM-pufferbe olvassa, így stick-kihúzás flash közben nem tör.
+- **FAT formátum:** FAT32 a várt (IDF default). A stick FAT-ját hiba esetén
+  NEM formázzuk.
 
 ---
 

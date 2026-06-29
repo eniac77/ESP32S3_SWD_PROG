@@ -13,6 +13,7 @@
 #include "flm_runner.h"
 #include "flm_blobs.h"
 #include "storage_lfs.h"
+#include "storage_src.h"
 #include "net_wifi.h"
 #include "swd_phy.h"
 
@@ -226,9 +227,11 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     /* Csendes SWD-log a flash idejére (a per-tranzakció VERBOSE az idő ~90%-a). */
     swd_logs_verbose(false);
 
-    /* 2. CONNECT fázis: fájl beolvasása LittleFS-ből. */
+    /* 2. CONNECT fázis: fájl beolvasása az aktív forrásból (LFS vagy USB).
+       A teljes fájlt PSRAM-pufferbe olvassuk MÉG a SWD/WiFi-pause előtt, így a
+       stick a flash alatt már nem kell (kihúzás flash közben nem tör el). */
     emit(cb, ctx, &st, PROG_CONNECT, 0, "fajl olvasas");
-    err = storage_lfs_read_all(fw_path, &data, &len);
+    err = storage_src_read_all(fw_path, &data, &len);
     if (err != ESP_OK || !data || len == 0) {
         ESP_LOGE(TAG, "fájl olvasás hiba: '%s' err=%d len=%u",
                  fw_path ? fw_path : "(nincs)", err, (unsigned)len);
