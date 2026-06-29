@@ -19,6 +19,7 @@
 #include "hal/gpio_ll.h"
 #include "soc/gpio_struct.h"
 #include "esp_rom_sys.h"      /* esp_rom_get_cpu_ticks_per_us */
+#include "esp_log.h"
 
 /* ======================= Lábkiosztás (könnyen átírható) ===================== */
 #define PIN_SWCLK   4   /* SWCLK kimenet */
@@ -215,6 +216,64 @@ void swd_phy_set_freq_hz(uint32_t hz)
      * hogy alacsony frekvencián ne lassítsunk túl. */
     const uint32_t overhead = 10;
     s_half_cycle_loops = (half > overhead) ? (half - overhead) : 0;
+}
+
+/* ============================ IO-önteszt (diagnosztika) ==================== *
+ * A protokoll által ténylegesen használt bemeneti utat (s_in dedic bundle)
+ * teszteli loopback-kel: meghajtjuk a SWDIO padot és visszaolvassuk. Ezzel
+ * eldönthető, hogy a csupa-1 ACK valódi cél-hiány-e, vagy a read-út hibája. */
+
+static const char *PHY_TAG = "swd_phy";
+
+/* A protokollal AZONOS úton olvas: a bemeneti dedic bundle SWDIO bitje. */
+static inline int read_swdio(void)
+{
+    return (dedic_gpio_bundle_read_in(s_in) & IN_SWDIO_MASK) ? 1 : 0;
+}
+
+bool swd_phy_selftest_io(void)
+{
+    /* 1) Released: magas-Z, csak a felhúzó húz. Elvárt: 1. */
+    swd_phy_dir(false);
+    esp_rom_delay_us(5);
+    int rel = read_swdio();
+
+    /* 2) Meghajtva 0. Elvárt: 0. (Ha 1, a bemeneti út nem látja a padot.) */
+    swd_phy_dir(true);
+    dedic_gpio_bundle_write(s_out, SWDIO_MASK, 0);
+    esp_rom_delay_us(5);
+    int lo = read_swdio();
+
+    /* 3) Meghajtva 1. Elvárt: 1. */
+    dedic_gpio_bundle_write(s_out, SWDIO_MASK, SWDIO_MASK);
+    esp_rom_delay_us(5);
+    int hi = read_swdio();
+
+    /* Néhány látható SWCLK pulzus analizátorhoz (SWDIO közben magas). */
+    for (int i = 0; i < 8; i++) { clk_low(); delay_half(); clk_high(); delay_half(); }
+
+    ESP_LOGI(PHY_TAG, "[IO-TEST] released=%d (var:1)  drive_lo=%d (var:0)  drive_hi=%d (var:1)",
+             rel, lo, hi);
+
+    bool ok = (rel == 1) && (lo == 0) && (hi == 1);
+    if (!ok) {
+        if (lo == 1) {
+            ESP_LOGW(PHY_TAG, "[IO-TEST] HIBA: meghajtott 0-t 1-nek olvas -> a bemeneti "
+                              "(dedic input) ut NEM latja a SWDIO pad valos szintjet. "
+                              "Ez a csupa-1 ACK szoftveres oka lehet (nem a bekotes).");
+        } else {
+            ESP_LOGW(PHY_TAG, "[IO-TEST] HIBA: varatlan olvasat (rel=%d lo=%d hi=%d).", rel, lo, hi);
+        }
+    } else {
+        ESP_LOGI(PHY_TAG, "[IO-TEST] OK: a PHY read-ut helyes -> a csupa-1 ACK valodi "
+                          "cel-hiany/bekotes problema (nem szoftver).");
+    }
+
+    /* Biztonságos alap visszaállítása. */
+    swd_phy_dir(true);
+    dedic_gpio_bundle_write(s_out, SWDIO_MASK, SWDIO_MASK);
+    clk_low();
+    return ok;
 }
 
 /* ============================ nRST (open-drain) =========================== *

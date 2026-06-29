@@ -86,6 +86,9 @@ static void log_banner(void)
 static void bringup_selftest(void)
 {
     prog_status_t st;
+    /* Előbb a PHY read-út loopback önteszt: eldönti, hogy egy esetleges
+       csupa-1 ACK szoftveres (bemeneti út) vagy HW/cél (bekötés) ok-e. */
+    swd_phy_selftest_io();
     ESP_LOGI(TAG, "[SELFTEST] SWD cel-detektalas indul (nRST nelkul)...");
     esp_err_t err = prog_session_detect(&st);
 

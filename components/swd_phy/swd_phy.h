@@ -29,6 +29,17 @@ void     swd_phy_set_freq_hz(uint32_t hz);
 /* nRST (open-drain) vezérlés: assert=true -> reset aktív (alacsony szint). */
 void     swd_phy_nrst(bool assert);
 
+/* --- Diagnosztika (bench bring-up) ---
+ * PHY-szintű IO-önteszt: ellenőrzi, hogy a bemeneti út (dedic input bundle)
+ * valóban a SWDIO pad fizikai szintjét olvassa-e. Loopback a padon át:
+ *   1) released (magas-Z, csak pullup) -> elvárt olvasat 1
+ *   2) meghajtva 0 -> elvárt olvasat 0   (ha 1, a read-út hibás -> csupa-1 ACK!)
+ *   3) meghajtva 1 -> elvárt olvasat 1
+ * Plusz néhány látható SWCLK pulzus analizátorhoz. A vizsgálat után a PHY-t
+ * biztonságos alapba állítja (SWDIO meghajtva magasra, SWCLK alacsony).
+ * Visszaad: true, ha mindhárom olvasat az elvárt -> a PHY read-út jó. */
+bool     swd_phy_selftest_io(void);
+
 #ifdef __cplusplus
 }
 #endif
