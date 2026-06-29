@@ -13,6 +13,7 @@
 #include "flm_runner.h"
 #include "flm_blobs.h"
 #include "storage_lfs.h"
+#include "net_wifi.h"
 
 static const char *TAG = "prog_session";
 
@@ -193,6 +194,11 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     ESP_LOGI(TAG, "flash indul: fájl='%s' base=0x%08lx",
              fw_path ? fw_path : "(nincs)", (unsigned long)base_addr);
 
+    /* WiFi rádió leállítása a flash idejére: a rádió zaja glitch-eli a bit-bang
+       SWD-t (HW-n megfigyelt magas glitch-ráta). Az enkóderes flasheléshez a
+       WiFi nem kell. A végén (out:) visszakapcsoljuk. */
+    (void)net_wifi_radio_pause(true);
+
     /* 2. CONNECT fázis: fájl beolvasása LittleFS-ből. */
     emit(cb, ctx, &st, PROG_CONNECT, 0, "fajl olvasas");
     err = storage_lfs_read_all(fw_path, &data, &len);
@@ -320,8 +326,9 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     err = ESP_OK;
 
 out:
-    /* 10. data felszabadítása minden ágon. */
+    /* 10. data felszabadítása + WiFi rádió visszakapcsolása minden ágon. */
     if (data) free(data);
+    (void)net_wifi_radio_pause(false);
     xSemaphoreGive(s_lock);
     return err;
 }
@@ -339,6 +346,9 @@ esp_err_t prog_session_detect(prog_status_t *out)
     esp_err_t err = ESP_OK;
 
     ESP_LOGI(TAG, "detektálás indul");
+
+    /* WiFi rádió leállítása a detektálás idejére is (azonos zaj-megfontolás). */
+    (void)net_wifi_radio_pause(true);
 
     /* Connect-under-reset. */
     uint32_t dp_idcode = 0;
@@ -389,6 +399,7 @@ finish:
     cortexm_sysreset();
     cortexm_resume();
 
+    (void)net_wifi_radio_pause(false);   /* WiFi rádió vissza */
     st.message[sizeof(st.message) - 1] = '\0';
     if (out) *out = st;
     xSemaphoreGive(s_lock);

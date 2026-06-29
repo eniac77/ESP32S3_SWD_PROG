@@ -367,6 +367,19 @@ bool net_wifi_get_ip(char *buf, size_t len)
     return false;
 }
 
+esp_err_t net_wifi_radio_pause(bool pause)
+{
+    if (!s_inited) return ESP_ERR_INVALID_STATE;
+    if (pause) {
+        ESP_LOGW(TAG, "WiFi rádió LEÁLLÍTÁSA (SWD-flash zajmentesítés)");
+        esp_err_t err = esp_wifi_stop();
+        return (err == ESP_ERR_WIFI_NOT_STARTED) ? ESP_OK : err;
+    }
+    ESP_LOGI(TAG, "WiFi rádió visszakapcsolása");
+    esp_err_t err = esp_wifi_start();
+    return (err == ESP_ERR_WIFI_NOT_STOPPED) ? ESP_OK : err;
+}
+
 esp_err_t net_wifi_set_creds(const char *ssid, const char *pass)
 {
     if (!ssid || ssid[0] == '\0') {

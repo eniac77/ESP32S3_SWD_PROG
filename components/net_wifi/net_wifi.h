@@ -31,6 +31,11 @@ bool net_wifi_get_ip(char *buf, size_t len);
 /* STA hitelesítő mentése NVS-be és újracsatlakozás. */
 esp_err_t net_wifi_set_creds(const char *ssid, const char *pass);
 
+/* WiFi rádió ideiglenes leállítása/visszakapcsolása. SWD-flash alatt a rádió
+   zaja glitch-elheti a bit-bang SWD-t; a flash idejére érdemes leállítani.
+   pause=true -> esp_wifi_stop(), pause=false -> esp_wifi_start(). Idempotens. */
+esp_err_t net_wifi_radio_pause(bool pause);
+
 #ifdef __cplusplus
 }
 #endif
