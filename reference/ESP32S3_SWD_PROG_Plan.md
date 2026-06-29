@@ -381,9 +381,17 @@ A *futó* cél STM32-vel UART (vagy RS485 fél-duplex) felett, a SWD-től **füg
 
 ---
 
-## 18. USB host (pendrive forrás) — ✅ IMPLEMENTÁLVA (Kconfig-gated)
+## 18. USB host (pendrive forrás) — ✅ HW-IGAZOLT (Kconfig-gated)
 
-**Kész.** `espressif/usb_host_msc` + FATFS a GPIO19/20 native USB padon. Új
+**Kész és valódi sticken működik** (mount + lista a stickről + forrásváltás).
+`espressif/usb_host_msc` + FATFS a GPIO19/20 native USB padon.
+
+> **Mount-minta (HW-n megtanulva):** a MSC connect-callbackből **NEM** hívható
+> `msc_host_install_device` — deadlock, mert a callback a MSC driver háttér-
+> taszkjában fut, amit az install_device-nak közben pörgetnie kellene. A callback
+> csak sorba tesz (`xQueueSend`), egy külön `usb_msc` task mountol. Tünet volt:
+> „MSC eszkoz csatlakozott" megjelent, de „USB stick mountolva" soha → a lista a
+> belső LFS-t mutatta. Új
 komponens: `storage_usb` (USB host daemon + MSC class + FAT mount `/usb` alá,
 hot-plug). A forrásválasztást a `storage_src` réteg végzi (a `storage_lfs`
 komponensben): ha van mountolt stick, az aktív forrás `/usb`, különben `/lfs`;
