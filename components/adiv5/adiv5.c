@@ -258,8 +258,13 @@ static esp_err_t dp_resync(void)
         }
         swd_wire_select();
         if (swd_read_raw(/*ap=*/false, DP_DPIDR, &dpidr) == ACK_OK) {
-            /* Sticky hibák törlése + SELECT visszaállítás (ha volt érvényes). */
+            /* Sticky hibák törlése + DEBUG POWER-UP visszaállítása + SELECT.
+               FONTOS: a wire helyreáll, de a debug-kontextus (CDBGPWRUPREQ/
+               CSYSPWRUPREQ) elveszhet -> akkor a DHCSR 0-t olvas és a core-reg
+               transzfer (S_REGRDY) sosem készül el. Ezért a power-up-ot is
+               újrakérjük (a CTRL/STAT ott van a DP-ben, SELECT-független). */
             (void)swd_write_raw(/*ap=*/false, DP_ABORT, ABORT_CLR_ALL);
+            (void)swd_write_raw(/*ap=*/false, DP_CTRLSTAT, CDBGPWRUPREQ | CSYSPWRUPREQ);
             if (s_select_valid) {
                 (void)swd_write_raw(/*ap=*/false, DP_SELECT, s_select_shadow);
             }
