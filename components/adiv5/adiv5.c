@@ -57,11 +57,20 @@ static const char *TAG = "adiv5";
 
 /* ---- Időzítés / retry konstansok ---- */
 #define WAIT_RETRY_MAX   64           /* WAIT ACK újrapróbálkozások */
+#define PROTO_RETRY_MAX  4            /* érvénytelen ACK / paritáshiba -> re-sync + retry */
 #define PWRUP_TIMEOUT_US 100000       /* 100 ms a power-up ACK-ra */
 
 /* SELECT árnyékmásolat — felesleges újraírások elkerülésére. */
 static uint32_t s_select_shadow;
 static bool     s_select_valid;
+
+/* Re-sync számláló: minden protokoll-hiba utáni helyreállításnál nő. A blokk-
+   olvasás ezt figyeli, hogy a posted-read pipeline-t re-sync esetén újraindítsa. */
+static uint32_t s_resync_count;
+
+/* Előre-deklarációk a re-sync-hez (line_reset lentebb van definiálva). */
+static void      line_reset(void);
+static esp_err_t dp_resync(void);
 
 /* AHB-AP CSW aktuális (visszaolvasott + módosított) értéke. */
 static uint32_t s_csw_base;
@@ -214,64 +223,114 @@ static void dp_abort_clear(void)
 }
 
 /* ===================================================================== */
-/* DP olvasás/írás WAIT-retry + FAULT->ABORT kezeléssel.                  */
+/* Protokoll-hiba helyreállítás (re-sync).                                */
+/* Érvénytelen ACK (0x0/0x7/...) vagy paritáshiba után a SW-DP elcsúszhat */
+/* a vezetéken. A line reset + DPIDR olvasás újraszinkronizálja a wire-    */
+/* protokollt; a DP debug-állapota (power-up) az always-on domainben marad.*/
+/* A SELECT/sticky állapotot a biztonság kedvéért visszaállítjuk. RAW      */
+/* tranzakciókkal dolgozik (nincs rekurzió a retry-wrapper-ekbe).          */
+/* ===================================================================== */
+static esp_err_t dp_resync(void)
+{
+    s_resync_count++;
+    ESP_LOGW(TAG, "re-sync #%lu: line reset + DPIDR (protokoll-hiba helyreállítás)",
+             (unsigned long)s_resync_count);
+
+    line_reset();
+
+    uint32_t dpidr = 0;
+    if (swd_read_raw(/*ap=*/false, DP_DPIDR, &dpidr) != ACK_OK) {
+        ESP_LOGW(TAG, "re-sync: DPIDR olvasás nem OK (a wire még csúszhat)");
+        return ESP_FAIL;
+    }
+
+    /* Sticky hibák törlése + SELECT visszaállítás (ha volt érvényes). */
+    (void)swd_write_raw(/*ap=*/false, DP_ABORT, ABORT_CLR_ALL);
+    if (s_select_valid) {
+        (void)swd_write_raw(/*ap=*/false, DP_SELECT, s_select_shadow);
+    }
+    return ESP_OK;
+}
+
+/* ===================================================================== */
+/* DP olvasás/írás: WAIT-retry + FAULT->ABORT + protokoll-hiba->re-sync.   */
+/* Érvénytelen ACK/paritáshiba esetén line-reset + retry (PROTO_RETRY_MAX).*/
 /* ===================================================================== */
 static esp_err_t dp_read(uint32_t addr, uint32_t *val)
 {
-    for (int i = 0; i < WAIT_RETRY_MAX; i++) {
+    int waitr = 0, protor = 0;
+    for (;;) {
         uint32_t ack = swd_read_raw(false, addr, val);
         if (ack == ACK_OK) {
             ESP_LOGV(TAG, "DP RD  addr=0x%lx -> 0x%08lx%s",
                      (unsigned long)addr, (unsigned long)(val ? *val : 0),
-                     i ? " (WAIT-retry után)" : "");
+                     (waitr || protor) ? " (retry után)" : "");
             return ESP_OK;
         }
         if (ack == ACK_WAIT) {
-            ESP_LOGV(TAG, "DP RD  addr=0x%lx WAIT retry #%d/%d",
-                     (unsigned long)addr, i + 1, WAIT_RETRY_MAX);
-            continue;                /* újrapróba */
+            if (++waitr > WAIT_RETRY_MAX) {
+                ESP_LOGW(TAG, "DP olvasás: tartós WAIT (addr=0x%lx)", (unsigned long)addr);
+                return ESP_ERR_TIMEOUT;
+            }
+            continue;
         }
         if (ack == ACK_FAULT) {
-            ESP_LOGW(TAG, "DP RD  addr=0x%lx FAULT -> ABORT", (unsigned long)addr);
             dp_abort_clear();
-            return ESP_FAIL;
+            if (++protor > PROTO_RETRY_MAX) {
+                ESP_LOGW(TAG, "DP RD  addr=0x%lx tartós FAULT", (unsigned long)addr);
+                return ESP_FAIL;
+            }
+            continue;
         }
-        ESP_LOGW(TAG, "DP RD  addr=0x%lx ismeretlen/protokollhiba (ACK=0x%lx)",
-                 (unsigned long)addr, (unsigned long)ack);
-        return ESP_ERR_INVALID_RESPONSE;              /* 0/ismeretlen ACK */
+        /* 0/0x7/... érvénytelen ACK vagy paritáshiba -> re-sync + retry. */
+        if (++protor > PROTO_RETRY_MAX) {
+            ESP_LOGW(TAG, "DP RD  addr=0x%lx tartós protokollhiba (ACK=0x%lx)",
+                     (unsigned long)addr, (unsigned long)ack);
+            return ESP_ERR_INVALID_RESPONSE;
+        }
+        ESP_LOGW(TAG, "DP RD  addr=0x%lx protokollhiba (ACK=0x%lx) -> re-sync #%d",
+                 (unsigned long)addr, (unsigned long)ack, protor);
+        dp_resync();
+        continue;
     }
-    ESP_LOGW(TAG, "DP olvasás: tartós WAIT (addr=0x%lx, %d retry kimerült)",
-             (unsigned long)addr, WAIT_RETRY_MAX);
-    return ESP_ERR_TIMEOUT;
 }
 
 static esp_err_t dp_write(uint32_t addr, uint32_t val)
 {
-    for (int i = 0; i < WAIT_RETRY_MAX; i++) {
+    int waitr = 0, protor = 0;
+    for (;;) {
         uint32_t ack = swd_write_raw(false, addr, val);
         if (ack == ACK_OK) {
             ESP_LOGV(TAG, "DP WR  addr=0x%lx <- 0x%08lx%s",
                      (unsigned long)addr, (unsigned long)val,
-                     i ? " (WAIT-retry után)" : "");
+                     (waitr || protor) ? " (retry után)" : "");
             return ESP_OK;
         }
         if (ack == ACK_WAIT) {
-            ESP_LOGV(TAG, "DP WR  addr=0x%lx WAIT retry #%d/%d",
-                     (unsigned long)addr, i + 1, WAIT_RETRY_MAX);
+            if (++waitr > WAIT_RETRY_MAX) {
+                ESP_LOGW(TAG, "DP írás: tartós WAIT (addr=0x%lx)", (unsigned long)addr);
+                return ESP_ERR_TIMEOUT;
+            }
             continue;
         }
         if (ack == ACK_FAULT) {
-            ESP_LOGW(TAG, "DP WR  addr=0x%lx FAULT -> ABORT", (unsigned long)addr);
             dp_abort_clear();
-            return ESP_FAIL;
+            if (++protor > PROTO_RETRY_MAX) {
+                ESP_LOGW(TAG, "DP WR  addr=0x%lx tartós FAULT", (unsigned long)addr);
+                return ESP_FAIL;
+            }
+            continue;
         }
-        ESP_LOGW(TAG, "DP WR  addr=0x%lx ismeretlen/protokollhiba (ACK=0x%lx)",
-                 (unsigned long)addr, (unsigned long)ack);
-        return ESP_ERR_INVALID_RESPONSE;
+        if (++protor > PROTO_RETRY_MAX) {
+            ESP_LOGW(TAG, "DP WR  addr=0x%lx tartós protokollhiba (ACK=0x%lx)",
+                     (unsigned long)addr, (unsigned long)ack);
+            return ESP_ERR_INVALID_RESPONSE;
+        }
+        ESP_LOGW(TAG, "DP WR  addr=0x%lx protokollhiba (ACK=0x%lx) -> re-sync #%d",
+                 (unsigned long)addr, (unsigned long)ack, protor);
+        dp_resync();
+        continue;
     }
-    ESP_LOGW(TAG, "DP írás: tartós WAIT (addr=0x%lx, %d retry kimerült)",
-             (unsigned long)addr, WAIT_RETRY_MAX);
-    return ESP_ERR_TIMEOUT;
 }
 
 /* ===================================================================== */
@@ -311,30 +370,42 @@ static esp_err_t ap_read_posted(uint32_t ap_off, uint32_t *prev_val)
     esp_err_t err = dp_select((ap_off >> 4) & 0xFu, 0);
     if (err != ESP_OK) return err;
 
-    for (int i = 0; i < WAIT_RETRY_MAX; i++) {
+    int waitr = 0, protor = 0;
+    for (;;) {
         uint32_t ack = swd_read_raw(/*ap=*/true, ap_off & 0xCu, prev_val);
         if (ack == ACK_OK) {
             ESP_LOGV(TAG, "AP RD (posted) off=0x%02lx -> prev=0x%08lx%s",
                      (unsigned long)ap_off, (unsigned long)(prev_val ? *prev_val : 0),
-                     i ? " (WAIT-retry után)" : "");
+                     (waitr || protor) ? " (retry után)" : "");
             return ESP_OK;
         }
         if (ack == ACK_WAIT) {
-            ESP_LOGV(TAG, "AP RD off=0x%02lx WAIT retry #%d/%d",
-                     (unsigned long)ap_off, i + 1, WAIT_RETRY_MAX);
+            if (++waitr > WAIT_RETRY_MAX) {
+                ESP_LOGW(TAG, "AP olvasás: tartós WAIT (off=0x%02lx)", (unsigned long)ap_off);
+                return ESP_ERR_TIMEOUT;
+            }
             continue;
         }
         if (ack == ACK_FAULT) {
-            ESP_LOGW(TAG, "AP RD off=0x%02lx FAULT -> ABORT", (unsigned long)ap_off);
             dp_abort_clear();
-            return ESP_FAIL;
+            if (++protor > PROTO_RETRY_MAX) {
+                ESP_LOGW(TAG, "AP RD off=0x%02lx tartós FAULT", (unsigned long)ap_off);
+                return ESP_FAIL;
+            }
+            continue;
         }
-        ESP_LOGW(TAG, "AP RD off=0x%02lx ismeretlen/protokollhiba (ACK=0x%lx)",
-                 (unsigned long)ap_off, (unsigned long)ack);
-        return ESP_ERR_INVALID_RESPONSE;
+        if (++protor > PROTO_RETRY_MAX) {
+            ESP_LOGW(TAG, "AP RD off=0x%02lx tartós protokollhiba (ACK=0x%lx)",
+                     (unsigned long)ap_off, (unsigned long)ack);
+            return ESP_ERR_INVALID_RESPONSE;
+        }
+        ESP_LOGW(TAG, "AP RD off=0x%02lx protokollhiba (ACK=0x%lx) -> re-sync #%d",
+                 (unsigned long)ap_off, (unsigned long)ack, protor);
+        dp_resync();
+        /* SELECT a re-sync-ben visszaáll; a posted-read pipeline-t a hívó
+           (block-olvasás) az s_resync_count alapján indítja újra. */
+        continue;
     }
-    ESP_LOGW(TAG, "AP olvasás: tartós WAIT (off=0x%02lx)", (unsigned long)ap_off);
-    return ESP_ERR_TIMEOUT;
 }
 
 static esp_err_t ap_write(uint32_t ap_off, uint32_t val)
@@ -342,30 +413,40 @@ static esp_err_t ap_write(uint32_t ap_off, uint32_t val)
     esp_err_t err = dp_select((ap_off >> 4) & 0xFu, 0);
     if (err != ESP_OK) return err;
 
-    for (int i = 0; i < WAIT_RETRY_MAX; i++) {
+    int waitr = 0, protor = 0;
+    for (;;) {
         uint32_t ack = swd_write_raw(/*ap=*/true, ap_off & 0xCu, val);
         if (ack == ACK_OK) {
             ESP_LOGV(TAG, "AP WR off=0x%02lx <- 0x%08lx%s",
                      (unsigned long)ap_off, (unsigned long)val,
-                     i ? " (WAIT-retry után)" : "");
+                     (waitr || protor) ? " (retry után)" : "");
             return ESP_OK;
         }
         if (ack == ACK_WAIT) {
-            ESP_LOGV(TAG, "AP WR off=0x%02lx WAIT retry #%d/%d",
-                     (unsigned long)ap_off, i + 1, WAIT_RETRY_MAX);
+            if (++waitr > WAIT_RETRY_MAX) {
+                ESP_LOGW(TAG, "AP írás: tartós WAIT (off=0x%02lx)", (unsigned long)ap_off);
+                return ESP_ERR_TIMEOUT;
+            }
             continue;
         }
         if (ack == ACK_FAULT) {
-            ESP_LOGW(TAG, "AP WR off=0x%02lx FAULT -> ABORT", (unsigned long)ap_off);
             dp_abort_clear();
-            return ESP_FAIL;
+            if (++protor > PROTO_RETRY_MAX) {
+                ESP_LOGW(TAG, "AP WR off=0x%02lx tartós FAULT", (unsigned long)ap_off);
+                return ESP_FAIL;
+            }
+            continue;
         }
-        ESP_LOGW(TAG, "AP WR off=0x%02lx ismeretlen/protokollhiba (ACK=0x%lx)",
-                 (unsigned long)ap_off, (unsigned long)ack);
-        return ESP_ERR_INVALID_RESPONSE;
+        if (++protor > PROTO_RETRY_MAX) {
+            ESP_LOGW(TAG, "AP WR off=0x%02lx tartós protokollhiba (ACK=0x%lx)",
+                     (unsigned long)ap_off, (unsigned long)ack);
+            return ESP_ERR_INVALID_RESPONSE;
+        }
+        ESP_LOGW(TAG, "AP WR off=0x%02lx protokollhiba (ACK=0x%lx) -> re-sync #%d",
+                 (unsigned long)ap_off, (unsigned long)ack, protor);
+        dp_resync();
+        continue;
     }
-    ESP_LOGW(TAG, "AP írás: tartós WAIT (off=0x%02lx)", (unsigned long)ap_off);
-    return ESP_ERR_TIMEOUT;
 }
 
 /* AP olvasás "kényelmi" formája: kiad egy AP-olvasást (indítja a hozzá-
@@ -586,24 +667,43 @@ esp_err_t adiv5_read_block(uint32_t addr, uint32_t *buf, size_t words)
         size_t chunk = words - i;
         if (chunk > words_left_in_kb) chunk = words_left_in_kb;
 
-        /* TAR a blokk elejére. */
-        err = ap_write(AP_TAR, addr);
-        if (err != ESP_OK) return err;
+        /* Egy chunk-ot egyben kell olvasni: a posted-read pipeline a TAR-tól
+           függ. Ha közben re-sync történt (protokoll-hiba helyreállítás), a
+           pipeline-állapot érvénytelen -> az egész chunk-ot újraolvassuk.
+           Az s_resync_count snapshot-tal detektáljuk a közbeni re-sync-et. */
+        int chunk_retry = 0;
+        for (;;) {
+            uint32_t resync_before = s_resync_count;
 
-        /* Posted-read indítás: az első DRW olvasás eredménye eldobandó. */
-        uint32_t dummy;
-        err = ap_read_posted(AP_DRW, &dummy);
-        if (err != ESP_OK) return err;
-
-        /* A chunk első (chunk-1) szava újabb DRW olvasásokból (mindegyik az
-           ELŐZŐ hozzáférés adatát adja vissza), az utolsó RDBUFF-ból. */
-        for (size_t k = 1; k < chunk; k++) {
-            err = ap_read_posted(AP_DRW, &buf[i + k - 1]);
+            /* TAR a blokk elejére. */
+            err = ap_write(AP_TAR, addr);
             if (err != ESP_OK) return err;
+
+            /* Posted-read indítás: az első DRW olvasás eredménye eldobandó. */
+            uint32_t dummy;
+            err = ap_read_posted(AP_DRW, &dummy);
+            if (err != ESP_OK) return err;
+
+            /* A chunk első (chunk-1) szava újabb DRW olvasásokból (mindegyik az
+               ELŐZŐ hozzáférés adatát adja vissza), az utolsó RDBUFF-ból. */
+            for (size_t k = 1; k < chunk; k++) {
+                err = ap_read_posted(AP_DRW, &buf[i + k - 1]);
+                if (err != ESP_OK) return err;
+            }
+            /* Az utolsó valódi adat RDBUFF-ból (ez nem növeli a TAR-t). */
+            err = dp_read(DP_RDBUFF, &buf[i + chunk - 1]);
+            if (err != ESP_OK) return err;
+
+            if (s_resync_count == resync_before) break;   /* nem volt re-sync -> kész */
+
+            if (++chunk_retry > PROTO_RETRY_MAX) {
+                ESP_LOGW(TAG, "block RD: re-sync miatt tartós chunk-újraolvasás (addr=0x%08lx)",
+                         (unsigned long)addr);
+                return ESP_ERR_INVALID_RESPONSE;
+            }
+            ESP_LOGW(TAG, "block RD: re-sync a chunk közben -> újraolvasás (addr=0x%08lx, #%d)",
+                     (unsigned long)addr, chunk_retry);
         }
-        /* Az utolsó valódi adat RDBUFF-ból (ez nem növeli a TAR-t). */
-        err = dp_read(DP_RDBUFF, &buf[i + chunk - 1]);
-        if (err != ESP_OK) return err;
 
         i    += chunk;
         addr += (uint32_t)chunk * 4u;
