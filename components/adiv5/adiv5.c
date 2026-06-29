@@ -14,6 +14,8 @@
 #include "swd_phy.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 static const char *TAG = "adiv5";
 
@@ -239,9 +241,17 @@ static esp_err_t dp_resync(void)
 
     /* Teljes wire-újraszinkronizálás: line reset + JTAG->SWD switch + line reset
        + idle. A puszta line reset nem elég, ha a DP dormant/JTAG állapotba esett;
-       a switch-szekvencia visszaválasztja az SW-DP-t. */
+       a switch-szekvencia visszaválasztja az SW-DP-t.
+       FONTOS (HW-n megfigyelt): egy glitch után a vonal beragadhat alacsonyra, és
+       az AZONNALI (szünet nélküli) switch-hammer NEM oldja fel — viszont egy rövid
+       TÉTLEN szünet (a vonalat elengedve) igen. Ezért minden próba előtt a vonalat
+       elengedjük és várunk; a szünet próbánként nő (8/16/24 ms). */
     uint32_t dpidr = 0;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
+        if (i > 0) {
+            swd_phy_dir(false);                 /* vonal elengedése a settle-höz */
+            vTaskDelay(pdMS_TO_TICKS(8 * i));   /* 8/16/24 ms tétlen szünet */
+        }
         swd_wire_select();
         if (swd_read_raw(/*ap=*/false, DP_DPIDR, &dpidr) == ACK_OK) {
             /* Sticky hibák törlése + SELECT visszaállítás (ha volt érvényes). */
@@ -249,10 +259,13 @@ static esp_err_t dp_resync(void)
             if (s_select_valid) {
                 (void)swd_write_raw(/*ap=*/false, DP_SELECT, s_select_shadow);
             }
+            if (i > 0) {
+                ESP_LOGW(TAG, "re-sync helyreállt a(z) %d. próbára (tétlen szünet után)", i + 1);
+            }
             return ESP_OK;
         }
     }
-    ESP_LOGW(TAG, "re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)");
+    ESP_LOGW(TAG, "re-sync: DPIDR switch + tétlen szünet után sem OK");
     return ESP_FAIL;
 }
 
