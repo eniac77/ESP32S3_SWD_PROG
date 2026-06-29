@@ -67,6 +67,7 @@ esp_err_t storage_usb_list(const char *dir, storage_usb_list_cb cb, void *ctx)
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+#include "freertos/queue.h"
 
 #include "usb/usb_host.h"
 #include "usb/msc_host.h"
@@ -78,6 +79,7 @@ static SemaphoreHandle_t       s_mutex   = NULL;
 static volatile bool           s_mounted = false;
 static msc_host_device_handle_t s_dev    = NULL;
 static msc_host_vfs_handle_t    s_vfs    = NULL;
+static QueueHandle_t           s_evt_q   = NULL;  /* MSC esemenyek a callbacktol */
 
 /* ---- USB host library daemon-taszk: a host-lib eseményeit pörgeti. ---- */
 static void usb_lib_task(void *arg)
@@ -137,16 +139,35 @@ static void usb_unmount(void)
     storage_usb_unlock();
 }
 
-/* ---- MSC eseny-callback (a MSC driver hattertaszkjabol). ---- */
+/* ---- MSC eseny-callback (a MSC driver hattertaszkjabol). ----
+   FONTOS: a callback a MSC driver hattertaszkjaban fut; innen NEM szabad
+   msc_host_install_device-t hivni (deadlock — ugyanaz a taszk pumpalna az
+   esemenyeket). Ezert csak sorba tesszuk, a mount/unmount kulon taszkban megy
+   (lasd usb_msc_task) — a hivatalos peldaval egyezo minta. */
 static void msc_event_cb(const msc_host_event_t *event, void *arg)
 {
     (void)arg;
-    if (event->event == MSC_DEVICE_CONNECTED) {
-        ESP_LOGI(TAG, "MSC eszkoz csatlakozott (addr=%u)", event->device.address);
-        usb_mount(event->device.address);
-    } else if (event->event == MSC_DEVICE_DISCONNECTED) {
-        ESP_LOGI(TAG, "MSC eszkoz lecsatlakozott");
-        usb_unmount();
+    if (s_evt_q) {
+        xQueueSend(s_evt_q, event, 0);
+    }
+}
+
+/* ---- Mount/unmount taszk: a sorbol veszi az esemenyeket. ---- */
+static void usb_msc_task(void *arg)
+{
+    (void)arg;
+    msc_host_event_t e;
+    while (1) {
+        if (xQueueReceive(s_evt_q, &e, portMAX_DELAY) != pdTRUE) {
+            continue;
+        }
+        if (e.event == MSC_DEVICE_CONNECTED) {
+            ESP_LOGI(TAG, "MSC eszkoz csatlakozott (addr=%u)", e.device.address);
+            usb_mount(e.device.address);
+        } else if (e.event == MSC_DEVICE_DISCONNECTED) {
+            ESP_LOGI(TAG, "MSC eszkoz lecsatlakozott");
+            usb_unmount();
+        }
     }
 }
 
@@ -189,6 +210,22 @@ esp_err_t storage_usb_init(void)
     BaseType_t ok = xTaskCreate(usb_lib_task, "usb_lib", 4096, NULL, 5, NULL);
     if (ok != pdPASS) {
         ESP_LOGE(TAG, "usb_lib taszk letrehozasa sikertelen");
+        usb_host_uninstall();
+        return ESP_ERR_NO_MEM;
+    }
+
+    /* Esemeny-sor + mount/unmount taszk a MSC install_device-hez (a callbackbol
+       NEM hivhato kozvetlenul). Letre KELL hozni a msc_host_install elott, hogy
+       az elso connect esemenyt mar fogadja. */
+    s_evt_q = xQueueCreate(4, sizeof(msc_host_event_t));
+    if (s_evt_q == NULL) {
+        ESP_LOGE(TAG, "MSC esemeny-sor letrehozasa sikertelen");
+        usb_host_uninstall();
+        return ESP_ERR_NO_MEM;
+    }
+    ok = xTaskCreate(usb_msc_task, "usb_msc", 5120, NULL, 5, NULL);
+    if (ok != pdPASS) {
+        ESP_LOGE(TAG, "usb_msc taszk letrehozasa sikertelen");
         usb_host_uninstall();
         return ESP_ERR_NO_MEM;
     }
