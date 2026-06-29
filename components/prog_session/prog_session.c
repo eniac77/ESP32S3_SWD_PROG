@@ -14,8 +14,27 @@
 #include "flm_blobs.h"
 #include "storage_lfs.h"
 #include "net_wifi.h"
+#include "swd_phy.h"
 
 static const char *TAG = "prog_session";
+
+/* SWD sebesség-profilok. Bring-up alatt lassú (megbízható), a tényleges
+   adatfázis (FLM-load/program/verify) alatt feltolva. A WiFi-rádió leállítása
+   óta a glitch-ráta elhanyagolható, így a magasabb SWCLK biztonságos. */
+#define SWD_FREQ_BRINGUP   300000u    /* ~300 kHz: line reset + switch + connect */
+#define SWD_FREQ_FAST     1000000u    /* 1 MHz: adatfázis (óvatos első lépés) */
+
+/* A per-tranzakció SWD-logok (VERBOSE) a flash idejének ~90%-át viszik az
+   UART-on. A flash idejére INFO-ra vesszük a SWD-tag-eket (mérföldkövek
+   maradnak), a végén visszaállítjuk VERBOSE-ra (a main.c baseline-ja). */
+static void swd_logs_verbose(bool verbose)
+{
+    esp_log_level_t lv = verbose ? ESP_LOG_VERBOSE : ESP_LOG_INFO;
+    esp_log_level_set("adiv5", lv);
+    esp_log_level_set("cortexm", lv);
+    esp_log_level_set("flm_runner", lv);
+    esp_log_level_set("swd_phy", lv);
+}
 
 /* Belső lock: egyszerre csak egy flash/detektálás futhat. */
 static SemaphoreHandle_t s_lock;
@@ -195,9 +214,12 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
              fw_path ? fw_path : "(nincs)", (unsigned long)base_addr);
 
     /* WiFi rádió leállítása a flash idejére: a rádió zaja glitch-eli a bit-bang
-       SWD-t (HW-n megfigyelt magas glitch-ráta). Az enkóderes flasheléshez a
+       SWD-t (HW-n megerősítve: re-sync 292 -> 2). Az enkóderes flasheléshez a
        WiFi nem kell. A végén (out:) visszakapcsoljuk. */
     (void)net_wifi_radio_pause(true);
+
+    /* Csendes SWD-log a flash idejére (a per-tranzakció VERBOSE az idő ~90%-a). */
+    swd_logs_verbose(false);
 
     /* 2. CONNECT fázis: fájl beolvasása LittleFS-ből. */
     emit(cb, ctx, &st, PROG_CONNECT, 0, "fajl olvasas");
@@ -221,6 +243,11 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
         goto out;
     }
     ESP_LOGI(TAG, "connect OK: DP IDCODE=0x%08lx", (unsigned long)dp_idcode);
+
+    /* A bring-up kész (mag a reset-vektoron halt-ol) -> SWCLK feltolása az
+       adatfázisra. A WiFi le van állítva, a glitch-ráta elhanyagolható. */
+    swd_phy_set_freq_hz(SWD_FREQ_FAST);
+    ESP_LOGI(TAG, "SWD órajel feltolva: %u Hz (adatfázis)", (unsigned)SWD_FREQ_FAST);
 
     /* 4. Cél detektálás (DEV_ID). */
     const target_info_t *info = detect_target(&st);
@@ -326,8 +353,10 @@ esp_err_t prog_session_flash_file(const char *fw_path, uint32_t base_addr,
     err = ESP_OK;
 
 out:
-    /* 10. data felszabadítása + WiFi rádió visszakapcsolása minden ágon. */
+    /* 10. Visszaállítás minden ágon: SWCLK lassú, SWD-log verbose, WiFi vissza. */
     if (data) free(data);
+    swd_phy_set_freq_hz(SWD_FREQ_BRINGUP);
+    swd_logs_verbose(true);
     (void)net_wifi_radio_pause(false);
     xSemaphoreGive(s_lock);
     return err;
