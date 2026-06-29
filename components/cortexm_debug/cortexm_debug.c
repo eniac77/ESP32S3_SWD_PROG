@@ -198,77 +198,98 @@ esp_err_t cortexm_connect_under_reset(uint32_t *idcode_out)
 #else
     /* nRST NÉLKÜLI csatlakozás (SYSRESETREQ + vektor-catch). A cél áramkörön a
        reset láb nem elérhető, ezért tisztán SWD-n hozunk létre "reset-vektoron
-       halt-oló" állapotot. (Az ESP nRST lábát NEM használjuk a célhoz.) */
-    esp_err_t err;
+       halt-oló" állapotot. (Az ESP nRST lábát NEM használjuk a célhoz.)
+
+       RETRY: egy alkalmi SWD-glitch deszinkronizálhat a bring-up közben, MIELŐTT
+       a SYSRESETREQ-ig eljutnánk. Mivel egy TISZTA lefutás megfogja a magot a
+       reset-vektoron (onnantól a mag áll -> stabil SWD), az EGÉSZ connect-
+       szekvenciát újrapróbáljuk. A boot-önteszt bizonyítja, hogy tiszta connect
+       lehetséges; néhány próbálkozás elkapja a tiszta ablakot. */
+    const int CONNECT_ATTEMPTS = 6;
+    esp_err_t err = ESP_FAIL;
 
     ESP_LOGI(TAG, "connect bring-up indul (nRST nélküli ág, SYSRESETREQ + vektor-catch)");
 
-    /* 1) SWD bring-up: line reset + JTAG->SWD switch + DPIDR + debug power-up.
-       Ez a FUTÓ magon is működik (a debug port külön táp-domainben van). */
-    ESP_LOGD(TAG, "SWD bring-up (adiv5_connect) a futó magon");
-    err = adiv5_connect(idcode_out);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "adiv5_connect hiba: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    /* 2) A futó mag azonnali haltolása (DHCSR <- 0xA05F0003), hogy a reset
-       előtt átvegyük az irányítást. A C_DEBUGEN a debug-domainben marad. */
-    ESP_LOGD(TAG, "halt-enable a futó magon (DHCSR<-0x%08x)", (unsigned)DHCSR_HALT_CMD);
-    err = adiv5_write32(DHCSR, DHCSR_HALT_CMD);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "DHCSR halt-enable hiba: %s", esp_err_to_name(err));
-        return err;
-    }
-    ESP_LOGD(TAG, "várás halt-ra (bring-up, reset előtt)");
-    err = cortexm_wait_halt(HALT_POLL_TIMEOUT_MS);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "a mag nem allt meg halt-on (bring-up)");
-        return err;
-    }
-
-    /* 3) Reset vector catch: a SYSRESETREQ után a mag a reset-vektoron halt-ol. */
-    ESP_LOGD(TAG, "VC_CORERESET bekapcsolása (DEMCR<-0x%08x)", (unsigned)DEMCR_VC_CORERESET);
-    err = adiv5_write32(DEMCR, DEMCR_VC_CORERESET);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "DEMCR VC_CORERESET hiba: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    /* 4) Szoftveres rendszer-reset (AIRCR SYSRESETREQ). A mag újraindul, majd a
-       vektor-catch miatt azonnal halt-ol a reset-vektoron — fizikai nRST nélkül. */
-    ESP_LOGD(TAG, "SYSRESETREQ küldve (AIRCR<-0x%08x), 2 ms várakozás", (unsigned)AIRCR_SYSRESET);
-    err = adiv5_write32(AIRCR, AIRCR_SYSRESET);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "AIRCR SYSRESETREQ hiba: %s", esp_err_to_name(err));
-        return err;
-    }
-    vTaskDelay(pdMS_TO_TICKS(2));    /* a reset lefutása */
-
-    /* 5) Várás a halt-ra (reset-vektoron). A reset alatt a DP/AP "stick"-elhet;
-       ha közvetlenül nem kapunk halt-ot, egy újra-bring-up + ellenőrzés. */
-    ESP_LOGD(TAG, "várás halt-ra a reset-vektoron");
-    err = cortexm_wait_halt(HALT_POLL_TIMEOUT_MS);
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "reset utan nincs halt, ujra-bring-up...");
-        if (adiv5_connect(NULL) != ESP_OK) {
-            return ESP_FAIL;
+    for (int attempt = 1; attempt <= CONNECT_ATTEMPTS; attempt++) {
+        if (attempt > 1) {
+            ESP_LOGW(TAG, "connect újrapróba #%d/%d (előző hiba: %s)",
+                     attempt, CONNECT_ATTEMPTS, esp_err_to_name(err));
+            vTaskDelay(pdMS_TO_TICKS(30));   /* hagyjuk a bus-t/célt rendeződni */
         }
-        ESP_LOGD(TAG, "újra-bring-up kész, ismételt várás halt-ra");
+
+        /* 1) SWD bring-up: line reset + JTAG->SWD switch + DPIDR + debug power-up.
+           Ez a FUTÓ magon is működik (a debug port külön táp-domainben van). */
+        ESP_LOGD(TAG, "SWD bring-up (adiv5_connect) a futó magon");
+        err = adiv5_connect(idcode_out);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "adiv5_connect hiba: %s", esp_err_to_name(err));
+            continue;
+        }
+
+        /* 2) A futó mag azonnali haltolása (DHCSR <- 0xA05F0003), hogy a reset
+           előtt átvegyük az irányítást. A C_DEBUGEN a debug-domainben marad. */
+        ESP_LOGD(TAG, "halt-enable a futó magon (DHCSR<-0x%08x)", (unsigned)DHCSR_HALT_CMD);
+        err = adiv5_write32(DHCSR, DHCSR_HALT_CMD);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "DHCSR halt-enable hiba: %s", esp_err_to_name(err));
+            continue;
+        }
+        ESP_LOGD(TAG, "várás halt-ra (bring-up, reset előtt)");
         err = cortexm_wait_halt(HALT_POLL_TIMEOUT_MS);
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "csatlakozas (nRST nelkul): nem allt meg halt-on");
-            return err;
+            ESP_LOGW(TAG, "a mag nem allt meg halt-on (bring-up)");
+            continue;
         }
+
+        /* 3) Reset vector catch: a SYSRESETREQ után a mag a reset-vektoron halt-ol. */
+        ESP_LOGD(TAG, "VC_CORERESET bekapcsolása (DEMCR<-0x%08x)", (unsigned)DEMCR_VC_CORERESET);
+        err = adiv5_write32(DEMCR, DEMCR_VC_CORERESET);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "DEMCR VC_CORERESET hiba: %s", esp_err_to_name(err));
+            continue;
+        }
+
+        /* 4) Szoftveres rendszer-reset (AIRCR SYSRESETREQ). A mag újraindul, majd a
+           vektor-catch miatt azonnal halt-ol a reset-vektoron — fizikai nRST nélkül. */
+        ESP_LOGD(TAG, "SYSRESETREQ küldve (AIRCR<-0x%08x), 2 ms várakozás", (unsigned)AIRCR_SYSRESET);
+        err = adiv5_write32(AIRCR, AIRCR_SYSRESET);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "AIRCR SYSRESETREQ hiba: %s", esp_err_to_name(err));
+            continue;
+        }
+        vTaskDelay(pdMS_TO_TICKS(2));    /* a reset lefutása */
+
+        /* 5) Várás a halt-ra (reset-vektoron). A reset alatt a DP/AP "stick"-elhet;
+           ha közvetlenül nem kapunk halt-ot, egy újra-bring-up + ellenőrzés. */
+        ESP_LOGD(TAG, "várás halt-ra a reset-vektoron");
+        err = cortexm_wait_halt(HALT_POLL_TIMEOUT_MS);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "reset utan nincs halt, ujra-bring-up...");
+            if (adiv5_connect(NULL) != ESP_OK) {
+                err = ESP_FAIL;
+                continue;
+            }
+            ESP_LOGD(TAG, "újra-bring-up kész, ismételt várás halt-ra");
+            err = cortexm_wait_halt(HALT_POLL_TIMEOUT_MS);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "reset után sem halt — újrapróba");
+                continue;
+            }
+        }
+
+        /* 6) Vektor-catch kikapcsolása: innen a flash resume/halt ciklusai szabadon
+           mennek, a végi reset&run pedig tisztán fut (nem akad meg a vektoron). */
+        ESP_LOGD(TAG, "vektor-catch kikapcsolása (DEMCR<-0)");
+        (void)adiv5_write32(DEMCR, 0u);
+
+        ESP_LOGI(TAG, "csatlakozas (nRST nelkul) OK (#%d. próbálkozás), cel a reset-vektoron halt-ol",
+                 attempt);
+        return ESP_OK;
     }
 
-    /* 6) Vektor-catch kikapcsolása: innen a flash resume/halt ciklusai szabadon
-       mennek, a végi reset&run pedig tisztán fut (nem akad meg a vektoron). */
-    ESP_LOGD(TAG, "vektor-catch kikapcsolása (DEMCR<-0)");
-    (void)adiv5_write32(DEMCR, 0u);
-
-    ESP_LOGI(TAG, "csatlakozas (nRST nelkul) OK, cel a reset-vektoron halt-ol");
-    return ESP_OK;
+    ESP_LOGE(TAG, "csatlakozas (nRST nelkul) sikertelen %d próbálkozás után: %s",
+             CONNECT_ATTEMPTS, esp_err_to_name(err));
+    return err;
 #endif /* CONFIG_CORTEXM_HW_NRST */
 }
 
