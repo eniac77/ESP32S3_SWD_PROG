@@ -59,7 +59,11 @@ static const char *TAG = "adiv5";
 
 /* ---- Időzítés / retry konstansok ---- */
 #define WAIT_RETRY_MAX   64           /* WAIT ACK újrapróbálkozások */
-#define PROTO_RETRY_MAX  4            /* érvénytelen ACK / paritáshiba -> re-sync + retry */
+#define PROTO_RETRY_MAX  16           /* érvénytelen ACK / paritáshiba -> re-sync + retry.
+                                         Magas, hogy a Program-fázis glitch-BURST-jeit is
+                                         túlélje: a re-sync egyetlen ~8 ms idle-re helyreáll,
+                                         de a glitch sorozatban jöhet (jel-integritás), ezért
+                                         a tranzakciót sokszor újra kell próbálni. */
 #define PWRUP_TIMEOUT_US 100000       /* 100 ms a power-up ACK-ra */
 
 /* SELECT árnyékmásolat — felesleges újraírások elkerülésére. */

@@ -1,554 +1,1848 @@
-I (2670) main: [SELFTEST] CEL OK: STM32F030x8/F05x
-I (2675) main: [SELFTEST]   DEV_ID = 0x440
-I (2678) main: [SELFTEST]   info   = STM32F030x8/F05x, 64 KB, RDP0
-I (24404) ui: flash indul: /lfs/fw/ECO_Lamella.bin
-I (24404) prog_session: flash indul: fájl='/lfs/fw/ECO_Lamella.bin' base=0x00000000
-I (24452) prog_session: fajl betoltve 29288 B (/lfs/fw/ECO_Lamella.bin)
-I (24480) cortexm: connect bring-up indul (nRST nélküli ág, SYSRESETREQ + vektor-catch)
-D (24480) cortexm: SWD bring-up (adiv5_connect) a futó magon
-D (24483) adiv5: SWD bring-up indul
-W (24487) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+I (23995) prog_session: DEV_ID=0x440 (STM32F030x8/F05x), flash=64 KB
+I (24001) target_db: FLM valasztva DEV_ID alapjan: '0x440' (0x440)
+I (24007) prog_session: kiválasztott FLM: '0x440' (abi=ST)
+I (24012) prog_session: flash bázis cím: 0x08000000
+I (24017) prog_session: FLM betöltése a cél RAM-jába
+I (24022) flm_runner: FLM betöltés: algo='0x440' abi=ST dev=0x08000000 +64 KB page=1024 B
+I (24030) flm_runner: RAM layout: load=0x20000004 end=0x20000500 bkpt=0x20000500 sp=0x20000908 buf=0x20000908(1024)
+D (24040) flm_runner: RAM részletek: code_len=1272 B stack=1024 B buf_size=1024 B
+D (24048) adiv5: block WR  addr=0x20000004, 64 szó (256 bájt)
+V (24054) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
+V (24059) adiv5: AP WR off=0x00 <- 0x03000052
+V (24064) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000004
+V (24068) adiv5: AP WR off=0x04 <- 0x20000004
+V (24073) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf000b580
+V (24078) adiv5: AP WR off=0x0c <- 0xf000b580
+V (24082) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2035f97b
+V (24087) adiv5: AP WR off=0x0c <- 0x2035f97b
+V (24092) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xfa2ff000
+V (24096) adiv5: AP WR off=0x0c <- 0xfa2ff000
+V (24101) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbd022001
+V (24106) adiv5: AP WR off=0x0c <- 0xbd022001
+V (24110) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0006b5f8
+V (24115) adiv5: AP WR off=0x0c <- 0x0006b5f8
+V (24120) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0015000c
+V (24124) adiv5: AP WR off=0x0c <- 0x0015000c
+V (24129) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd00e2c00
+V (24134) adiv5: AP WR off=0x0c <- 0xd00e2c00
+V (24139) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00306829
+V (24143) adiv5: AP WR off=0x0c <- 0x00306829
+V (24148) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf9c0f000
+V (24153) adiv5: AP WR off=0x0c <- 0xf9c0f000
+V (24157) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00380007
+V (24162) adiv5: AP WR off=0x0c <- 0x00380007
+V (24167) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2804b2c0
+V (24171) adiv5: AP WR off=0x0c <- 0x2804b2c0
+V (24176) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2000d001
+V (24181) adiv5: AP WR off=0x0c <- 0x2000d001
+V (24185) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1f24e004
+V (24190) adiv5: AP WR off=0x0c <- 0x1f24e004
+V (24195) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1d361d2d
+V (24199) adiv5: AP WR off=0x0c <- 0x1d361d2d
+V (24204) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2001e7ee
+V (24209) adiv5: AP WR off=0x0c <- 0x2001e7ee
+V (24214) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb5f7bdf2
+V (24218) adiv5: AP WR off=0x0c <- 0xb5f7bdf2
+V (24223) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2704b086
+V (24227) adiv5: AP WR off=0x0c <- 0x2704b086
+V (24232) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x49394838
+V (24237) adiv5: AP WR off=0x0c <- 0x49394838
+V (24242) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x49396001
+V (24246) adiv5: AP WR off=0x0c <- 0x49396001
+V (24251) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x26006001
+V (24256) adiv5: AP WR off=0x0c <- 0x26006001
+V (24260) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x2c100034
+W (24266) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (24272) adiv5: re-sync #2: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (24280) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (24286) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24291) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24297) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24302) adiv5: 8 idle bit a switch után
+V (24305) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (24318) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (24318) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24321) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24326) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24332) adiv5: 8 idle bit a switch után
+V (24335) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (24341) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (24346) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (24350) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (24358) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x2c100034
+W (24363) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #2
+W (24369) adiv5: re-sync #3: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (24378) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (24383) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24389) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24394) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24400) adiv5: 8 idle bit a switch után
+V (24403) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (24416) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (24416) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24419) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24424) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24429) adiv5: 8 idle bit a switch után
+V (24433) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (24438) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (24444) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (24448) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (24456) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2c100034
+V (24460) adiv5: AP WR off=0x0c <- 0x2c100034 (retry után)
+V (24466) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x4937da0c
+W (24471) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (24477) adiv5: re-sync #4: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (24486) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
 D (24492) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24498) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24497) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
 D (24503) adiv5: line reset (>=50 SWCLK, SWDIO=1)
 V (24508) adiv5: 8 idle bit a switch után
-D (24511) adiv5: DPIDR olvasás (első érvényes tranzakció)
-V (24518) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
-V (24522) adiv5: DP RD  addr=0x0 -> 0x0bb11477
-I (24526) adiv5: DPIDR = 0x0bb11477
-D (24529) adiv5: SELECT nullázás (AP0, bank0)
-V (24533) adiv5: SELECT írás 0x00000000 (APBANKSEL=0x0, DPBANKSEL=0x0)
-V (24540) adiv5: raw WR  DP addr=0x8 ACK=??? (0x0) adat=0x00000000
-W (24546) adiv5: DP WR  addr=0x8 protokollhiba (ACK=0x0) -> re-sync #1
-W (24552) adiv5: re-sync #1: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
-W (24561) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24566) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24572) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24577) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24582) adiv5: 8 idle bit a switch után
-V (24585) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24591) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24596) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24601) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24607) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24612) adiv5: 8 idle bit a switch után
-V (24615) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24620) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24626) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24631) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24637) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24642) adiv5: 8 idle bit a switch után
-V (24645) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24649) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
-V (24657) adiv5: raw WR  DP addr=0x8 ACK=??? (0x0) adat=0x00000000
-W (24663) adiv5: DP WR  addr=0x8 protokollhiba (ACK=0x0) -> re-sync #2
-W (24669) adiv5: re-sync #2: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
-W (24678) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24683) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24689) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24694) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24699) adiv5: 8 idle bit a switch után
-V (24703) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24708) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24713) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24718) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24724) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24729) adiv5: 8 idle bit a switch után
-V (24732) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24737) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24743) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24748) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24754) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24759) adiv5: 8 idle bit a switch után
-V (24762) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24766) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
-V (24774) adiv5: raw WR  DP addr=0x8 ACK=??? (0x0) adat=0x00000000
-W (24780) adiv5: DP WR  addr=0x8 protokollhiba (ACK=0x0) -> re-sync #3
-W (24786) adiv5: re-sync #3: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
-W (24795) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24800) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24806) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24811) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24817) adiv5: 8 idle bit a switch után
-V (24820) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24825) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24830) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24836) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24841) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24846) adiv5: 8 idle bit a switch után
-V (24849) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24854) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24860) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24865) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24871) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24876) adiv5: 8 idle bit a switch után
-V (24879) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24883) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
-V (24892) adiv5: raw WR  DP addr=0x8 ACK=??? (0x0) adat=0x00000000
-W (24897) adiv5: DP WR  addr=0x8 protokollhiba (ACK=0x0) -> re-sync #4
-W (24903) adiv5: re-sync #4: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
-W (24912) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24917) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24923) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24928) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24934) adiv5: 8 idle bit a switch után
-V (24937) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24942) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24947) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24953) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24958) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24963) adiv5: 8 idle bit a switch után
-V (24966) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (24972) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (24977) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (24982) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (24988) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (24993) adiv5: 8 idle bit a switch után
-V (24996) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (25000) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
-V (25009) adiv5: raw WR  DP addr=0x8 ACK=??? (0x0) adat=0x00000000
-W (25014) adiv5: DP WR  addr=0x8 tartós protokollhiba (ACK=0x0)
-W (25020) cortexm: adiv5_connect hiba: ESP_ERR_INVALID_RESPONSE
-W (25026) cortexm: connect újrapróba #2/6 (előző hiba: ESP_ERR_INVALID_RESPONSE)
-D (25063) cortexm: SWD bring-up (adiv5_connect) a futó magon
-D (25063) adiv5: SWD bring-up indul
-W (25064) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
-D (25067) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (25072) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (25078) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (25083) adiv5: 8 idle bit a switch után
-D (25086) adiv5: DPIDR olvasás (első érvényes tranzakció)
-V (25092) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
-V (25096) adiv5: DP RD  addr=0x0 -> 0x0bb11477
-I (25101) adiv5: DPIDR = 0x0bb11477
-D (25104) adiv5: SELECT nullázás (AP0, bank0)
-V (25108) adiv5: SELECT írás 0x00000000 (APBANKSEL=0x0, DPBANKSEL=0x0)
-V (25115) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
-V (25120) adiv5: DP WR  addr=0x8 <- 0x00000000
-D (25124) adiv5: ABORT: sticky hibák törlése (ABORT<-0x1e)
-V (25130) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
-D (25135) adiv5: CTRL/STAT power-up kérés (CDBGPWRUPREQ | CSYSPWRUPREQ)
-V (25142) adiv5: raw WR  DP addr=0x4 ACK=OK adat=0x50000000
-V (25147) adiv5: DP WR  addr=0x4 <- 0x50000000
-D (25151) adiv5: várakozás CDBGPWRUPACK + CSYSPWRUPACK bitekre
-V (25157) adiv5: raw RD  DP addr=0x4 ACK=OK adat=0xf0000040
-V (25162) adiv5: DP RD  addr=0x4 -> 0xf0000040
-I (25166) adiv5: debug power-up OK (CTRL/STAT=0xf0000040, CDBGPWRUPACK+CSYSPWRUPACK megérkezett, 9450 us)
-D (25175) adiv5: AHB-AP CSW alapállapot beállítása
-V (25181) adiv5: raw RD  AP addr=0x0 ACK=OK adat=0x00000000
-V (25185) adiv5: AP RD (posted) off=0x00 -> prev=0x00000000
-V (25192) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x03000052
-V (25196) adiv5: DP RD  addr=0xc -> 0x03000052
-V (25200) adiv5: AHB-AP CSW kiindulás (reset-default) = 0x03000052
-V (25207) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
-V (25212) adiv5: AP WR off=0x00 <- 0x03000052
-D (25215) adiv5: AHB-AP CSW beállítva (Word + AddrInc Single) = 0x03000052
-V (25222) adiv5: SELECT írás 0x000000f0 (APBANKSEL=0xf, DPBANKSEL=0x0)
-V (25230) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x000000f0
-V (25234) adiv5: DP WR  addr=0x8 <- 0x000000f0
-V (25239) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
-V (25243) adiv5: AP RD (posted) off=0xfc -> prev=0x00000000
-V (25250) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x04770021
-V (25254) adiv5: DP RD  addr=0xc -> 0x04770021
-I (25258) adiv5: AHB-AP IDR = 0x04770021
-I (25262) adiv5: SWD bring-up KÉSZ (DPIDR=0x0bb11477)
-D (25267) cortexm: halt-enable a futó magon (DHCSR<-0xa05f0003)
-V (25272) adiv5: SELECT írás 0x00000000 (APBANKSEL=0x0, DPBANKSEL=0x0)
-V (25280) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
-V (25284) adiv5: DP WR  addr=0x8 <- 0x00000000
-V (25289) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
-V (25294) adiv5: AP WR off=0x04 <- 0xe000edf0
-V (25299) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xa05f0003
-V (25303) adiv5: AP WR off=0x0c <- 0xa05f0003
-V (25307) adiv5: wr32 0xe000edf0 <- 0xa05f0003
-D (25311) cortexm: várás halt-ra (bring-up, reset előtt)
-V (25317) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
-V (25322) adiv5: AP WR off=0x04 <- 0xe000edf0
-V (25327) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
-V (25331) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
-V (25337) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x03030003
-V (25342) adiv5: DP RD  addr=0xc -> 0x03030003
-V (25346) adiv5: rd32 0xe000edf0 -> 0x03030003
-D (25350) cortexm: halt elérve (DHCSR=0x03030003, 33574 us alatt)
-D (25356) cortexm: VC_CORERESET bekapcsolása (DEMCR<-0x00000001)
-V (25363) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edfc
-V (25367) adiv5: AP WR off=0x04 <- 0xe000edfc
-V (25372) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000001
-V (25377) adiv5: AP WR off=0x0c <- 0x00000001
-V (25381) adiv5: wr32 0xe000edfc <- 0x00000001
-D (25385) cortexm: SYSRESETREQ küldve (AIRCR<-0x05fa0004), 2 ms várakozás
-V (25392) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000ed0c
-V (25397) adiv5: AP WR off=0x04 <- 0xe000ed0c
-V (25402) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x05fa0004
-V (25406) adiv5: AP WR off=0x0c <- 0x05fa0004
-V (25410) adiv5: wr32 0xe000ed0c <- 0x05fa0004
-D (25416) cortexm: várás halt-ra a reset-vektoron
-V (25420) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
-V (25425) adiv5: AP WR off=0x04 <- 0xe000edf0
-V (25429) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
-V (25434) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
-V (25440) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x03030003
-V (25444) adiv5: DP RD  addr=0xc -> 0x03030003
-V (25448) adiv5: rd32 0xe000edf0 -> 0x03030003
-D (25453) cortexm: halt elérve (DHCSR=0x03030003, 33603 us alatt)
-D (25459) cortexm: vektor-catch kikapcsolása (DEMCR<-0)
-V (25465) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edfc
-V (25469) adiv5: AP WR off=0x04 <- 0xe000edfc
-V (25474) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
-V (25478) adiv5: AP WR off=0x0c <- 0x00000000
-V (25482) adiv5: wr32 0xe000edfc <- 0x00000000
-I (25486) cortexm: csatlakozas (nRST nelkul) OK (#2. próbálkozás), cel a reset-vektoron halt-ol
-I (25495) prog_session: connect OK: DP IDCODE=0x0bb11477
-D (25500) prog_session: detektálás: 2 IDCODE-cím próbálása
-V (25507) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe0042000
-V (25511) adiv5: AP WR off=0x04 <- 0xe0042000
-V (25516) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
-V (25521) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
-V (25527) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00000000
-V (25531) adiv5: DP RD  addr=0xc -> 0x00000000
-V (25535) adiv5: rd32 0xe0042000 -> 0x00000000
-D (25540) prog_session: IDCODE @ 0xe0042000 -> raw=0x00000000 dev_id=0x000
-V (25547) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x40015800
-V (25552) adiv5: AP WR off=0x04 <- 0x40015800
-V (25556) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
-V (25561) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
-V (25567) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x20006440
-V (25571) adiv5: DP RD  addr=0xc -> 0x20006440
-V (25576) adiv5: rd32 0x40015800 -> 0x20006440
-D (25580) prog_session: IDCODE @ 0x40015800 -> raw=0x20006440 dev_id=0x440
-I (25586) prog_session: cél azonosítva: DEV_ID=0x440 (STM32F030x8/F05x) @ IDCODE 0x40015800
-V (25596) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x4002201c
-V (25600) adiv5: AP WR off=0x04 <- 0x4002201c
-V (25605) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
-V (25609) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
-V (25615) adiv5: raw RD  DP addr=0xc ACK=OK adat=0xffffff00
-V (25620) adiv5: DP RD  addr=0xc -> 0xffffff00
-V (25624) adiv5: rd32 0x4002201c -> 0xffffff00
-D (25628) prog_session: RDP reg 0x4002201c -> raw=0xffffff00 -> szint=0
-I (25635) prog_session: RDP szint=0 -> folytatás engedélyezve
-V (25641) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x1ffff7cc
-V (25646) adiv5: AP WR off=0x04 <- 0x1ffff7cc
-V (25650) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
-V (25655) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
-V (25661) adiv5: raw RD  DP addr=0xc ACK=OK adat=0xffff0040
-V (25665) adiv5: DP RD  addr=0xc -> 0xffff0040
-V (25670) adiv5: rd32 0x1ffff7cc -> 0xffff0040
-D (25674) prog_session: F-size reg 0x1ffff7cc -> raw=0xffff0040 -> 64 KB
-I (25680) prog_session: DEV_ID=0x440 (STM32F030x8/F05x), flash=64 KB
-I (25686) target_db: FLM valasztva DEV_ID alapjan: '0x440' (0x440)
-I (25692) prog_session: kiválasztott FLM: '0x440' (abi=ST)
-I (25697) prog_session: flash bázis cím: 0x08000000
-I (25702) prog_session: FLM betöltése a cél RAM-jába
-I (25707) flm_runner: FLM betöltés: algo='0x440' abi=ST dev=0x08000000 +64 KB page=1024 B
-I (25715) flm_runner: RAM layout: load=0x20000004 end=0x20000500 bkpt=0x20000500 sp=0x20000908 buf=0x20000908(1024)
-D (25726) flm_runner: RAM részletek: code_len=1272 B stack=1024 B buf_size=1024 B
-D (25733) adiv5: block WR  addr=0x20000004, 64 szó (256 bájt)
-V (25739) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
-V (25744) adiv5: AP WR off=0x00 <- 0x03000052
-V (25749) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000004
-V (25753) adiv5: AP WR off=0x04 <- 0x20000004
-V (25758) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf000b580
-V (25763) adiv5: AP WR off=0x0c <- 0xf000b580
-V (25767) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2035f97b
-V (25772) adiv5: AP WR off=0x0c <- 0x2035f97b
-V (25777) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xfa2ff000
-V (25781) adiv5: AP WR off=0x0c <- 0xfa2ff000
-V (25786) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbd022001
-V (25791) adiv5: AP WR off=0x0c <- 0xbd022001
-V (25796) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0006b5f8
-V (25800) adiv5: AP WR off=0x0c <- 0x0006b5f8
-V (25805) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0015000c
-V (25809) adiv5: AP WR off=0x0c <- 0x0015000c
-V (25814) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd00e2c00
-V (25819) adiv5: AP WR off=0x0c <- 0xd00e2c00
-V (25824) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00306829
-V (25828) adiv5: AP WR off=0x0c <- 0x00306829
-V (25833) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf9c0f000
-V (25838) adiv5: AP WR off=0x0c <- 0xf9c0f000
-V (25842) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00380007
-V (25847) adiv5: AP WR off=0x0c <- 0x00380007
-V (25852) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2804b2c0
-V (25856) adiv5: AP WR off=0x0c <- 0x2804b2c0
-V (25861) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2000d001
-V (25866) adiv5: AP WR off=0x0c <- 0x2000d001
-V (25871) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1f24e004
-V (25875) adiv5: AP WR off=0x0c <- 0x1f24e004
-V (25880) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1d361d2d
-V (25884) adiv5: AP WR off=0x0c <- 0x1d361d2d
-V (25889) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2001e7ee
-V (25894) adiv5: AP WR off=0x0c <- 0x2001e7ee
-V (25899) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb5f7bdf2
-V (25903) adiv5: AP WR off=0x0c <- 0xb5f7bdf2
-V (25908) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2704b086
-V (25913) adiv5: AP WR off=0x0c <- 0x2704b086
-V (25917) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x49394838
-V (25922) adiv5: AP WR off=0x0c <- 0x49394838
-V (25927) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x49396001
-V (25931) adiv5: AP WR off=0x0c <- 0x49396001
-V (25936) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x26006001
-V (25941) adiv5: AP WR off=0x0c <- 0x26006001
-V (25946) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2c100034
-V (25950) adiv5: AP WR off=0x0c <- 0x2c100034
-V (25955) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4937da0c
-V (25959) adiv5: AP WR off=0x0c <- 0x4937da0c
-V (25964) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1862a801
-V (25969) adiv5: AP WR off=0x0c <- 0x1862a801
-V (25974) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x55028812
-V (25978) adiv5: AP WR off=0x0c <- 0x55028812
-V (25983) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x88091861
-V (25988) adiv5: AP WR off=0x0c <- 0x88091861
-V (25992) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0a09b289
-V (25997) adiv5: AP WR off=0x0c <- 0x0a09b289
-V (26002) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x70411900
-V (26006) adiv5: AP WR off=0x0c <- 0x70411900
-V (26011) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe7f01ca4
-V (26016) adiv5: AP WR off=0x0c <- 0xe7f01ca4
-V (26021) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x99070030
-V (26025) adiv5: AP WR off=0x0c <- 0x99070030
-V (26030) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd2104288
-V (26034) adiv5: AP WR off=0x0c <- 0xd2104288
-V (26039) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x78099908
-V (26044) adiv5: AP WR off=0x0c <- 0x78099908
-V (26049) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x9b06aa01
-V (26053) adiv5: AP WR off=0x0c <- 0x9b06aa01
-V (26058) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x181bb2db
-V (26063) adiv5: AP WR off=0x0c <- 0x181bb2db
-V (26068) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x990854d1
-V (26072) adiv5: AP WR off=0x0c <- 0x990854d1
-V (26077) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x91081c49
-V (26081) adiv5: AP WR off=0x0c <- 0x91081c49
-V (26086) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x18099906
-V (26091) adiv5: AP WR off=0x0c <- 0x18099906
-V (26095) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x42914a29
-V (26100) adiv5: AP WR off=0x0c <- 0x42914a29
-V (26105) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1c40d201
-V (26109) adiv5: AP WR off=0x0c <- 0x1c40d201
-V (26114) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4d28e7eb
-V (26119) adiv5: AP WR off=0x0c <- 0x4d28e7eb
-V (26124) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21206828
-V (26128) adiv5: AP WR off=0x0c <- 0x21206828
-V (26133) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60294301
-V (26138) adiv5: AP WR off=0x0c <- 0x60294301
-V (26142) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21406828
-V (26147) adiv5: AP WR off=0x0c <- 0x21406828
-V (26152) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60294301
-V (26156) adiv5: AP WR off=0x0c <- 0x60294301
-V (26161) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x030020b0
-V (26166) adiv5: AP WR off=0x0c <- 0x030020b0
-V (26171) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf9f6f000
-V (26175) adiv5: AP WR off=0x0c <- 0xf9f6f000
-V (26180) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x70084669
-V (26184) adiv5: AP WR off=0x0c <- 0x70084669
-V (26189) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x78004668
-V (26194) adiv5: AP WR off=0x0c <- 0x78004668
-V (26199) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd1032804
-V (26203) adiv5: AP WR off=0x0c <- 0xd1032804
-V (26208) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21206828
-V (26213) adiv5: AP WR off=0x0c <- 0x21206828
-V (26217) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60284388
-V (26222) adiv5: AP WR off=0x0c <- 0x60284388
-V (26227) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68284f1a
-V (26231) adiv5: AP WR off=0x0c <- 0x68284f1a
-V (26236) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43012110
-V (26241) adiv5: AP WR off=0x0c <- 0x43012110
-V (26245) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x481b6029
-V (26250) adiv5: AP WR off=0x0c <- 0x481b6029
-V (26255) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd2174287
-V (26259) adiv5: AP WR off=0x0c <- 0xd2174287
-V (26264) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x5d81a801
-V (26269) adiv5: AP WR off=0x0c <- 0x5d81a801
-V (26274) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x78401980
-V (26278) adiv5: AP WR off=0x0c <- 0x78401980
-V (26283) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x18080200
-V (26288) adiv5: AP WR off=0x0c <- 0x18080200
-V (26292) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20b08038
-V (26297) adiv5: AP WR off=0x0c <- 0x20b08038
-V (26302) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf0000300
-V (26306) adiv5: AP WR off=0x0c <- 0xf0000300
-V (26311) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4669f9d9
-V (26316) adiv5: AP WR off=0x0c <- 0x4669f9d9
-V (26320) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x98077008
-V (26325) adiv5: AP WR off=0x0c <- 0x98077008
-V (26330) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x90071e80
-V (26334) adiv5: AP WR off=0x0c <- 0x90071e80
-V (26339) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1cbf1cb6
-V (26344) adiv5: AP WR off=0x0c <- 0x1cbf1cb6
-V (26349) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x78004668
-V (26353) adiv5: AP WR off=0x0c <- 0x78004668
-D (26357) adiv5: block WR  addr=0x20000104, 64 szó (256 bájt)
-V (26364) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
-V (26368) adiv5: AP WR off=0x00 <- 0x03000052
-V (26373) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000104
-V (26378) adiv5: AP WR off=0x04 <- 0x20000104
-V (26382) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0e62804
-V (26387) adiv5: AP WR off=0x0c <- 0xd0e62804
-V (26392) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe00d2000
-V (26396) adiv5: AP WR off=0x0c <- 0xe00d2000
-V (26401) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21016828
-V (26406) adiv5: AP WR off=0x0c <- 0x21016828
-V (26410) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60284388
-V (26415) adiv5: AP WR off=0x0c <- 0x60284388
-V (26420) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x490c6828
-V (26424) adiv5: AP WR off=0x0c <- 0x490c6828
-V (26429) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60294001
-V (26434) adiv5: AP WR off=0x0c <- 0x60294001
-V (26439) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21806828
-V (26443) adiv5: AP WR off=0x0c <- 0x21806828
-V (26448) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43010189
-V (26453) adiv5: AP WR off=0x0c <- 0x43010189
-V (26457) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20016029
-V (26462) adiv5: AP WR off=0x0c <- 0x20016029
-V (26467) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbdf0b009
-V (26471) adiv5: AP WR off=0x0c <- 0xbdf0b009
-V (26476) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40022008
-V (26481) adiv5: AP WR off=0x0c <- 0x40022008
-V (26485) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x45670123
-V (26490) adiv5: AP WR off=0x0c <- 0x45670123
-V (26495) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xcdef89ab
-V (26499) adiv5: AP WR off=0x0c <- 0xcdef89ab
-V (26504) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ffff800
-V (26509) adiv5: AP WR off=0x0c <- 0x1ffff800
-V (26514) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ffff811
-V (26518) adiv5: AP WR off=0x0c <- 0x1ffff811
-V (26523) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40022010
-V (26528) adiv5: AP WR off=0x0c <- 0x40022010
-V (26532) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ffff810
-V (26537) adiv5: AP WR off=0x0c <- 0x1ffff810
-V (26542) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xfffffdff
-V (26546) adiv5: AP WR off=0x0c <- 0xfffffdff
-V (26551) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf000b580
-V (26556) adiv5: AP WR off=0x0c <- 0xf000b580
-V (26560) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001f90b
-V (26565) adiv5: AP WR off=0x0c <- 0x0001f90b
-V (26570) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2c00008
-V (26574) adiv5: AP WR off=0x0c <- 0xb2c00008
-V (26579) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd1012804
-V (26584) adiv5: AP WR off=0x0c <- 0xd1012804
-V (26589) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe0002001
-V (26593) adiv5: AP WR off=0x0c <- 0xe0002001
-V (26598) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbd022000
-V (26603) adiv5: AP WR off=0x0c <- 0xbd022000
-V (26607) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0005b570
-V (26612) adiv5: AP WR off=0x0c <- 0x0005b570
-V (26617) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x42ac000c
-V (26621) adiv5: AP WR off=0x0c <- 0x42ac000c
-V (26626) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0028d30d
-V (26631) adiv5: AP WR off=0x0c <- 0x0028d30d
-V (26635) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf8d7f000
-V (26640) adiv5: AP WR off=0x0c <- 0xf8d7f000
-V (26645) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00300006
-V (26649) adiv5: AP WR off=0x0c <- 0x00300006
-V (26654) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2804b2c0
-V (26659) adiv5: AP WR off=0x0c <- 0x2804b2c0
-V (26664) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2000d001
-V (26668) adiv5: AP WR off=0x0c <- 0x2000d001
-V (26673) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2080e004
-V (26677) adiv5: AP WR off=0x0c <- 0x2080e004
-V (26682) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x182d00c0
-V (26687) adiv5: AP WR off=0x0c <- 0x182d00c0
-V (26692) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2001e7ef
-V (26696) adiv5: AP WR off=0x0c <- 0x2001e7ef
-V (26701) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb5f8bd70
-V (26706) adiv5: AP WR off=0x0c <- 0xb5f8bd70
-V (26710) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00100003
-V (26715) adiv5: AP WR off=0x0c <- 0x00100003
-V (26720) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0792001a
-V (26724) adiv5: AP WR off=0x0c <- 0x0792001a
-V (26729) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x000c0f92
-V (26734) adiv5: AP WR off=0x0c <- 0x000c0f92
-V (26739) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0fad079d
-V (26743) adiv5: AP WR off=0x0c <- 0x0fad079d
-V (26747) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x078d1b5b
-W (26753) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
-W (26759) adiv5: re-sync #5: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
-W (26768) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (26773) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (26779) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (26784) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (26789) adiv5: 8 idle bit a switch után
-V (26792) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (26798) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (26803) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (26808) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (26814) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (26819) adiv5: 8 idle bit a switch után
-V (26822) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (26827) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (26833) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (26838) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (26844) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (26849) adiv5: 8 idle bit a switch után
-V (26852) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (26856) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
-V (26864) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x078d1b5b
-W (26870) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #2
-W (26876) adiv5: re-sync #6: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
-W (26885) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (26890) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (26896) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (26901) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (26906) adiv5: 8 idle bit a switch után
-V (26909) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (26915) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (26920) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (26925) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (26931) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (26936) adiv5: 8 idle bit a switch után
-V (26939) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (26944) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (26950) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (26955) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (26961) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (26966) adiv5: 8 idle bit a switch után
-V (26969) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (26973) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
-V (26981) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x078d1b5b
-W (26987) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #3
-W (26993) adiv5: re-sync #7: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
-W (27002) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (27007) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (27013) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (27018) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (27023) adiv5: 8 idle bit a switch után
-V (27026) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (27032) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (27037) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (27042) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (27048) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (27053) adiv5: 8 idle bit a switch után
-V (27056) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (27061) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (27067) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (27072) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (27078) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (27083) adiv5: 8 idle bit a switch után
-V (27086) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (27090) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
-V (27098) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x078d1b5b
-W (27104) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #4
-W (27110) adiv5: re-sync #8: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
-W (27119) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (27124) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (27130) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (27135) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (27140) adiv5: 8 idle bit a switch után
-V (27143) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (27149) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (27154) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (27159) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (27165) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (27170) adiv5: 8 idle bit a switch után
-V (27173) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (27178) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
-D (27184) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-D (27189) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
-D (27195) adiv5: line reset (>=50 SWCLK, SWDIO=1)
-V (27200) adiv5: 8 idle bit a switch után
-V (27203) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
-W (27207) adiv5: re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)
-V (27215) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x078d1b5b
-W (27221) adiv5: AP WR off=0x0c tartós protokollhiba (ACK=0x0)
-E (27227) flm_runner: code betöltés hiba: 264
-E (27231) prog_session: FLM betöltés/Init hiba: err=264
-E (27264) ui: flash hiba: ESP_ERR_INVALID_RESPONSE
-I (33747) main: [heartbeat] up=30s, heap=221055B, psram=8382056B
+V (24511) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (24524) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (24524) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24527) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24532) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24538) adiv5: 8 idle bit a switch után
+V (24541) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (24546) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (24552) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (24556) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (24563) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x4937da0c
+W (24569) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #2
+W (24575) adiv5: re-sync #5: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (24584) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (24589) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24595) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24600) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24605) adiv5: 8 idle bit a switch után
+V (24609) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (24622) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (24622) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24625) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24630) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24635) adiv5: 8 idle bit a switch után
+V (24639) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (24644) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (24650) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (24654) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (24662) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4937da0c
+V (24666) adiv5: AP WR off=0x0c <- 0x4937da0c (retry után)
+V (24672) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x1862a801
+W (24677) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (24683) adiv5: re-sync #6: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (24692) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (24697) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24703) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24708) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24714) adiv5: 8 idle bit a switch után
+V (24717) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (24730) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (24730) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (24733) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (24738) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (24743) adiv5: 8 idle bit a switch után
+V (24747) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (24752) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (24758) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (24762) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (24770) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1862a801
+V (24774) adiv5: AP WR off=0x0c <- 0x1862a801 (retry után)
+V (24780) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x55028812
+V (24785) adiv5: AP WR off=0x0c <- 0x55028812
+V (24790) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x88091861
+V (24794) adiv5: AP WR off=0x0c <- 0x88091861
+V (24799) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0a09b289
+V (24804) adiv5: AP WR off=0x0c <- 0x0a09b289
+V (24809) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x70411900
+V (24813) adiv5: AP WR off=0x0c <- 0x70411900
+V (24818) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe7f01ca4
+V (24822) adiv5: AP WR off=0x0c <- 0xe7f01ca4
+V (24827) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x99070030
+V (24832) adiv5: AP WR off=0x0c <- 0x99070030
+V (24837) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd2104288
+V (24841) adiv5: AP WR off=0x0c <- 0xd2104288
+V (24846) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x78099908
+V (24851) adiv5: AP WR off=0x0c <- 0x78099908
+V (24855) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x9b06aa01
+V (24860) adiv5: AP WR off=0x0c <- 0x9b06aa01
+V (24865) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x181bb2db
+V (24870) adiv5: AP WR off=0x0c <- 0x181bb2db
+V (24874) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x990854d1
+V (24879) adiv5: AP WR off=0x0c <- 0x990854d1
+V (24884) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x91081c49
+V (24888) adiv5: AP WR off=0x0c <- 0x91081c49
+V (24893) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x18099906
+V (24897) adiv5: AP WR off=0x0c <- 0x18099906
+V (24902) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x42914a29
+V (24907) adiv5: AP WR off=0x0c <- 0x42914a29
+V (24912) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1c40d201
+V (24916) adiv5: AP WR off=0x0c <- 0x1c40d201
+V (24921) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4d28e7eb
+V (24926) adiv5: AP WR off=0x0c <- 0x4d28e7eb
+V (24930) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21206828
+V (24935) adiv5: AP WR off=0x0c <- 0x21206828
+V (24940) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60294301
+V (24944) adiv5: AP WR off=0x0c <- 0x60294301
+V (24949) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21406828
+V (24954) adiv5: AP WR off=0x0c <- 0x21406828
+V (24959) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60294301
+V (24963) adiv5: AP WR off=0x0c <- 0x60294301
+V (24968) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x030020b0
+V (24973) adiv5: AP WR off=0x0c <- 0x030020b0
+V (24977) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf9f6f000
+V (24982) adiv5: AP WR off=0x0c <- 0xf9f6f000
+V (24987) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x70084669
+V (24991) adiv5: AP WR off=0x0c <- 0x70084669
+V (24996) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x78004668
+V (25001) adiv5: AP WR off=0x0c <- 0x78004668
+V (25005) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd1032804
+V (25010) adiv5: AP WR off=0x0c <- 0xd1032804
+V (25015) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21206828
+V (25019) adiv5: AP WR off=0x0c <- 0x21206828
+V (25024) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60284388
+V (25029) adiv5: AP WR off=0x0c <- 0x60284388
+V (25034) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68284f1a
+V (25038) adiv5: AP WR off=0x0c <- 0x68284f1a
+V (25043) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43012110
+V (25047) adiv5: AP WR off=0x0c <- 0x43012110
+V (25052) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x481b6029
+V (25057) adiv5: AP WR off=0x0c <- 0x481b6029
+V (25062) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd2174287
+V (25066) adiv5: AP WR off=0x0c <- 0xd2174287
+V (25071) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x5d81a801
+V (25076) adiv5: AP WR off=0x0c <- 0x5d81a801
+V (25080) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x78401980
+V (25085) adiv5: AP WR off=0x0c <- 0x78401980
+V (25090) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x18080200
+V (25094) adiv5: AP WR off=0x0c <- 0x18080200
+V (25099) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20b08038
+V (25104) adiv5: AP WR off=0x0c <- 0x20b08038
+V (25109) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf0000300
+V (25113) adiv5: AP WR off=0x0c <- 0xf0000300
+V (25118) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4669f9d9
+V (25122) adiv5: AP WR off=0x0c <- 0x4669f9d9
+V (25127) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x98077008
+V (25132) adiv5: AP WR off=0x0c <- 0x98077008
+V (25137) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x90071e80
+V (25141) adiv5: AP WR off=0x0c <- 0x90071e80
+V (25146) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1cbf1cb6
+V (25151) adiv5: AP WR off=0x0c <- 0x1cbf1cb6
+V (25155) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x78004668
+V (25160) adiv5: AP WR off=0x0c <- 0x78004668
+D (25164) adiv5: block WR  addr=0x20000104, 64 szó (256 bájt)
+V (25170) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
+V (25175) adiv5: AP WR off=0x00 <- 0x03000052
+V (25180) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000104
+V (25184) adiv5: AP WR off=0x04 <- 0x20000104
+V (25189) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0e62804
+V (25194) adiv5: AP WR off=0x0c <- 0xd0e62804
+V (25199) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe00d2000
+V (25203) adiv5: AP WR off=0x0c <- 0xe00d2000
+V (25208) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21016828
+V (25212) adiv5: AP WR off=0x0c <- 0x21016828
+V (25217) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60284388
+V (25222) adiv5: AP WR off=0x0c <- 0x60284388
+V (25227) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x490c6828
+V (25231) adiv5: AP WR off=0x0c <- 0x490c6828
+V (25236) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60294001
+V (25241) adiv5: AP WR off=0x0c <- 0x60294001
+V (25245) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21806828
+V (25250) adiv5: AP WR off=0x0c <- 0x21806828
+V (25255) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43010189
+V (25259) adiv5: AP WR off=0x0c <- 0x43010189
+V (25264) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20016029
+V (25269) adiv5: AP WR off=0x0c <- 0x20016029
+V (25274) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbdf0b009
+V (25278) adiv5: AP WR off=0x0c <- 0xbdf0b009
+V (25283) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40022008
+V (25287) adiv5: AP WR off=0x0c <- 0x40022008
+V (25292) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x45670123
+V (25297) adiv5: AP WR off=0x0c <- 0x45670123
+V (25302) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xcdef89ab
+V (25306) adiv5: AP WR off=0x0c <- 0xcdef89ab
+V (25311) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ffff800
+V (25316) adiv5: AP WR off=0x0c <- 0x1ffff800
+V (25320) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ffff811
+V (25325) adiv5: AP WR off=0x0c <- 0x1ffff811
+V (25330) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40022010
+V (25334) adiv5: AP WR off=0x0c <- 0x40022010
+V (25339) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ffff810
+V (25344) adiv5: AP WR off=0x0c <- 0x1ffff810
+V (25349) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xfffffdff
+V (25353) adiv5: AP WR off=0x0c <- 0xfffffdff
+V (25358) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf000b580
+V (25362) adiv5: AP WR off=0x0c <- 0xf000b580
+V (25367) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001f90b
+V (25372) adiv5: AP WR off=0x0c <- 0x0001f90b
+V (25377) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2c00008
+V (25381) adiv5: AP WR off=0x0c <- 0xb2c00008
+V (25385) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0xd1012804
+W (25391) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (25397) adiv5: re-sync #7: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (25406) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (25411) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (25417) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (25422) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (25427) adiv5: 8 idle bit a switch után
+V (25431) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (25444) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (25444) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (25447) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (25452) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (25457) adiv5: 8 idle bit a switch után
+V (25461) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (25466) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (25472) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (25476) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (25484) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd1012804
+V (25488) adiv5: AP WR off=0x0c <- 0xd1012804 (retry után)
+V (25494) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe0002001
+V (25499) adiv5: AP WR off=0x0c <- 0xe0002001
+V (25504) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbd022000
+V (25508) adiv5: AP WR off=0x0c <- 0xbd022000
+V (25513) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0005b570
+V (25518) adiv5: AP WR off=0x0c <- 0x0005b570
+V (25522) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x42ac000c
+V (25527) adiv5: AP WR off=0x0c <- 0x42ac000c
+V (25532) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0028d30d
+V (25536) adiv5: AP WR off=0x0c <- 0x0028d30d
+V (25541) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf8d7f000
+V (25546) adiv5: AP WR off=0x0c <- 0xf8d7f000
+V (25551) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00300006
+V (25555) adiv5: AP WR off=0x0c <- 0x00300006
+V (25560) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2804b2c0
+V (25564) adiv5: AP WR off=0x0c <- 0x2804b2c0
+V (25569) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2000d001
+V (25574) adiv5: AP WR off=0x0c <- 0x2000d001
+V (25579) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2080e004
+V (25583) adiv5: AP WR off=0x0c <- 0x2080e004
+V (25588) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x182d00c0
+V (25593) adiv5: AP WR off=0x0c <- 0x182d00c0
+V (25597) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2001e7ef
+V (25602) adiv5: AP WR off=0x0c <- 0x2001e7ef
+V (25607) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb5f8bd70
+V (25611) adiv5: AP WR off=0x0c <- 0xb5f8bd70
+V (25616) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00100003
+V (25621) adiv5: AP WR off=0x0c <- 0x00100003
+V (25626) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0792001a
+V (25630) adiv5: AP WR off=0x0c <- 0x0792001a
+V (25635) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x000c0f92
+V (25639) adiv5: AP WR off=0x0c <- 0x000c0f92
+V (25644) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0fad079d
+V (25649) adiv5: AP WR off=0x0c <- 0x0fad079d
+V (25654) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x078d1b5b
+V (25658) adiv5: AP WR off=0x0c <- 0x078d1b5b
+V (25663) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2d000fad
+V (25668) adiv5: AP WR off=0x0c <- 0x2d000fad
+V (25672) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2500d101
+V (25677) adiv5: AP WR off=0x0c <- 0x2500d101
+V (25682) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2504e003
+V (25687) adiv5: AP WR off=0x0c <- 0x2504e003
+V (25691) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0fb6078e
+V (25696) adiv5: AP WR off=0x0c <- 0x0fb6078e
+V (25700) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x19491bad
+V (25705) adiv5: AP WR off=0x0c <- 0x19491bad
+V (25710) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21009100
+V (25714) adiv5: AP WR off=0x0c <- 0x21009100
+V (25719) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x42a99d00
+V (25724) adiv5: AP WR off=0x0c <- 0x42a99d00
+V (25729) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x681dd26c
+V (25733) adiv5: AP WR off=0x0c <- 0x681dd26c
+V (25738) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60016
+V (25743) adiv5: AP WR off=0x0c <- 0xb2f60016
+V (25747) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0252e00
+V (25752) adiv5: AP WR off=0x0c <- 0xd0252e00
+V (25757) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60016
+V (25761) adiv5: AP WR off=0x0c <- 0xb2f60016
+V (25766) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0f360736
+V (25771) adiv5: AP WR off=0x0c <- 0x0f360736
+V (25775) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2e01b2f6
+V (25780) adiv5: AP WR off=0x0c <- 0x2e01b2f6
+V (25785) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd35cd004
+V (25789) adiv5: AP WR off=0x0c <- 0xd35cd004
+V (25794) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0162e03
+V (25799) adiv5: AP WR off=0x0c <- 0xd0162e03
+V (25804) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe058d30c
+V (25808) adiv5: AP WR off=0x0c <- 0xe058d30c
+V (25813) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60a2e
+V (25818) adiv5: AP WR off=0x0c <- 0xb2f60a2e
+V (25822) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x002e1980
+V (25827) adiv5: AP WR off=0x0c <- 0x002e1980
+V (25832) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60c36
+V (25836) adiv5: AP WR off=0x0c <- 0xb2f60c36
+V (25841) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0e2e1980
+V (25846) adiv5: AP WR off=0x0c <- 0x0e2e1980
+V (25850) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1980b2f6
+V (25855) adiv5: AP WR off=0x0c <- 0x1980b2f6
+V (25860) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe04c1e52
+V (25864) adiv5: AP WR off=0x0c <- 0xe04c1e52
+V (25869) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0c36002e
+V (25874) adiv5: AP WR off=0x0c <- 0x0c36002e
+V (25879) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1980b2f6
+V (25883) adiv5: AP WR off=0x0c <- 0x1980b2f6
+D (25887) adiv5: block WR  addr=0x20000204, 64 szó (256 bájt)
+V (25894) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
+V (25898) adiv5: AP WR off=0x00 <- 0x03000052
+V (25903) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000204
+V (25908) adiv5: AP WR off=0x04 <- 0x20000204
+V (25912) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60e2e
+V (25917) adiv5: AP WR off=0x0c <- 0xb2f60e2e
+V (25922) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1e921980
+V (25926) adiv5: AP WR off=0x0c <- 0x1e921980
+V (25931) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0e2ee043
+V (25936) adiv5: AP WR off=0x0c <- 0x0e2ee043
+V (25940) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1980b2f6
+V (25945) adiv5: AP WR off=0x0c <- 0x1980b2f6
+V (25950) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe03e1ed2
+V (25954) adiv5: AP WR off=0x0c <- 0xe03e1ed2
+V (25959) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00279e00
+V (25964) adiv5: AP WR off=0x0c <- 0x00279e00
+V (25969) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1bf6b2ff
+V (25973) adiv5: AP WR off=0x0c <- 0x1bf6b2ff
+V (25978) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0fb607b6
+V (25983) adiv5: AP WR off=0x0c <- 0x0fb607b6
+V (25987) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0292e00
+V (25992) adiv5: AP WR off=0x0c <- 0xd0292e00
+V (25997) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1a769e00
+V (26001) adiv5: AP WR off=0x0c <- 0x1a769e00
+V (26006) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd2252e05
+V (26011) adiv5: AP WR off=0x0c <- 0xd2252e05
+V (26015) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00279e00
+V (26020) adiv5: AP WR off=0x0c <- 0x00279e00
+V (26025) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1bf6b2ff
+V (26029) adiv5: AP WR off=0x0c <- 0x1bf6b2ff
+V (26034) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0f360736
+V (26039) adiv5: AP WR off=0x0c <- 0x0f360736
+V (26044) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0042e01
+V (26048) adiv5: AP WR off=0x0c <- 0xd0042e01
+V (26053) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2e03d329
+V (26058) adiv5: AP WR off=0x0c <- 0x2e03d329
+V (26062) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd30cd015
+V (26067) adiv5: AP WR off=0x0c <- 0xd30cd015
+V (26072) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x002ee025
+V (26076) adiv5: AP WR off=0x0c <- 0x002ee025
+V (26081) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1980b2f6
+V (26086) adiv5: AP WR off=0x0c <- 0x1980b2f6
+V (26090) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60a2e
+V (26095) adiv5: AP WR off=0x0c <- 0xb2f60a2e
+V (26100) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x002e1980
+V (26104) adiv5: AP WR off=0x0c <- 0x002e1980
+V (26109) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60c36
+V (26114) adiv5: AP WR off=0x0c <- 0xb2f60c36
+V (26119) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1e641980
+V (26123) adiv5: AP WR off=0x0c <- 0x1e641980
+V (26128) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x002ee019
+V (26133) adiv5: AP WR off=0x0c <- 0x002ee019
+V (26137) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1980b2f6
+V (26142) adiv5: AP WR off=0x0c <- 0x1980b2f6
+V (26147) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60a2e
+V (26151) adiv5: AP WR off=0x0c <- 0xb2f60a2e
+V (26156) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ea41980
+V (26161) adiv5: AP WR off=0x0c <- 0x1ea41980
+V (26165) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x002ee011
+V (26170) adiv5: AP WR off=0x0c <- 0x002ee011
+V (26175) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1980b2f6
+V (26179) adiv5: AP WR off=0x0c <- 0x1980b2f6
+V (26184) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe00c1ee4
+V (26189) adiv5: AP WR off=0x0c <- 0xe00c1ee4
+V (26194) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f6002e
+V (26198) adiv5: AP WR off=0x0c <- 0xb2f6002e
+V (26203) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0a2e1980
+V (26208) adiv5: AP WR off=0x0c <- 0x0a2e1980
+V (26212) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1980b2f6
+V (26217) adiv5: AP WR off=0x0c <- 0x1980b2f6
+V (26222) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0c36002e
+V (26226) adiv5: AP WR off=0x0c <- 0x0c36002e
+V (26231) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1980b2f6
+V (26236) adiv5: AP WR off=0x0c <- 0x1980b2f6
+V (26240) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2f60e2e
+V (26245) adiv5: AP WR off=0x0c <- 0xb2f60e2e
+V (26250) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1d1b1980
+V (26254) adiv5: AP WR off=0x0c <- 0x1d1b1980
+V (26259) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe78f1d09
+V (26264) adiv5: AP WR off=0x0c <- 0xe78f1d09
+V (26269) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb5febdf2
+V (26273) adiv5: AP WR off=0x0c <- 0xb5febdf2
+V (26278) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0004b082
+V (26282) adiv5: AP WR off=0x0c <- 0x0004b082
+V (26287) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2000000d
+V (26292) adiv5: AP WR off=0x0c <- 0x2000000d
+V (26297) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20009000
+V (26301) adiv5: AP WR off=0x0c <- 0x20009000
+V (26306) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x200f9001
+V (26311) adiv5: AP WR off=0x0c <- 0x200f9001
+V (26315) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x99039a01
+V (26320) adiv5: AP WR off=0x0c <- 0x99039a01
+V (26325) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43592304
+V (26329) adiv5: AP WR off=0x0c <- 0x43592304
+V (26334) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0c1b9b04
+V (26339) adiv5: AP WR off=0x0c <- 0x0c1b9b04
+V (26344) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ac94003
+V (26348) adiv5: AP WR off=0x0c <- 0x1ac94003
+V (26353) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40189b04
+V (26357) adiv5: AP WR off=0x0c <- 0x40189b04
+V (26362) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf7ff1820
+V (26367) adiv5: AP WR off=0x0c <- 0xf7ff1820
+V (26372) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0006ff62
+V (26376) adiv5: AP WR off=0x0c <- 0x0006ff62
+V (26381) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x22002700
+V (26386) adiv5: AP WR off=0x0c <- 0x22002700
+V (26390) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21049803
+V (26395) adiv5: AP WR off=0x0c <- 0x21049803
+V (26400) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x42824348
+V (26404) adiv5: AP WR off=0x0c <- 0x42824348
+V (26409) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x6820d209
+V (26414) adiv5: AP WR off=0x0c <- 0x6820d209
+V (26419) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x42886829
+V (26423) adiv5: AP WR off=0x0c <- 0x42886829
+V (26428) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x9400d001
+V (26432) adiv5: AP WR off=0x0c <- 0x9400d001
+V (26437) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1d24e003
+V (26442) adiv5: AP WR off=0x0c <- 0x1d24e003
+V (26447) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1d121d2d
+V (26451) adiv5: AP WR off=0x0c <- 0x1d121d2d
+V (26456) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0037e7f0
+V (26461) adiv5: AP WR off=0x0c <- 0x0037e7f0
+V (26465) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x98002600
+V (26470) adiv5: AP WR off=0x0c <- 0x98002600
+V (26475) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x19802100
+V (26479) adiv5: AP WR off=0x0c <- 0x19802100
+V (26484) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb0054179
+V (26489) adiv5: AP WR off=0x0c <- 0xb0054179
+V (26494) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0000bdf0
+V (26498) adiv5: AP WR off=0x0c <- 0x0000bdf0
+V (26503) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4876b500
+V (26508) adiv5: AP WR off=0x0c <- 0x4876b500
+D (26511) adiv5: block WR  addr=0x20000304, 64 szó (256 bájt)
+V (26518) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
+V (26522) adiv5: AP WR off=0x00 <- 0x03000052
+V (26527) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000304
+V (26532) adiv5: AP WR off=0x04 <- 0x20000304
+V (26537) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x06006800
+V (26541) adiv5: AP WR off=0x0c <- 0x06006800
+V (26546) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4875d504
+V (26551) adiv5: AP WR off=0x0c <- 0x4875d504
+V (26555) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60014975
+V (26560) adiv5: AP WR off=0x0c <- 0x60014975
+V (26565) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60014975
+V (26569) adiv5: AP WR off=0x0c <- 0x60014975
+V (26574) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4871bd00
+V (26579) adiv5: AP WR off=0x0c <- 0x4871bd00
+V (26584) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x22806801
+V (26588) adiv5: AP WR off=0x0c <- 0x22806801
+V (26593) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x6002430a
+V (26597) adiv5: AP WR off=0x0c <- 0x6002430a
+V (26602) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb5f84770
+V (26607) adiv5: AP WR off=0x0c <- 0xb5f84770
+V (26612) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x26040007
+V (26616) adiv5: AP WR off=0x0c <- 0x26040007
+V (26621) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x032424b0
+V (26626) adiv5: AP WR off=0x0c <- 0x032424b0
+V (26630) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf0000020
+V (26635) adiv5: AP WR off=0x0c <- 0xf0000020
+V (26640) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0005f8b9
+V (26644) adiv5: AP WR off=0x0c <- 0x0005f8b9
+V (26649) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2c00028
+V (26654) adiv5: AP WR off=0x0c <- 0xb2c00028
+V (26659) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd1122804
+V (26663) adiv5: AP WR off=0x0c <- 0xd1122804
+V (26668) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68304e67
+V (26672) adiv5: AP WR off=0x0c <- 0x68304e67
+V (26677) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43012102
+V (26682) adiv5: AP WR off=0x0c <- 0x43012102
+V (26687) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x48696031
+V (26691) adiv5: AP WR off=0x0c <- 0x48696031
+V (26696) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68306007
+V (26701) adiv5: AP WR off=0x0c <- 0x68306007
+V (26705) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43012140
+V (26710) adiv5: AP WR off=0x0c <- 0x43012140
+V (26715) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00206031
+V (26719) adiv5: AP WR off=0x0c <- 0x00206031
+V (26724) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf8a6f000
+V (26729) adiv5: AP WR off=0x0c <- 0xf8a6f000
+V (26734) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68300005
+V (26738) adiv5: AP WR off=0x0c <- 0x68300005
+V (26743) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43882102
+V (26747) adiv5: AP WR off=0x0c <- 0x43882102
+V (26752) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00286030
+V (26757) adiv5: AP WR off=0x0c <- 0x00286030
+V (26762) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbdf2b2c0
+V (26766) adiv5: AP WR off=0x0c <- 0xbdf2b2c0
+V (26771) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2404b5f8
+V (26776) adiv5: AP WR off=0x0c <- 0x2404b5f8
+V (26780) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x27b00026
+V (26785) adiv5: AP WR off=0x0c <- 0x27b00026
+V (26790) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0038033f
+V (26794) adiv5: AP WR off=0x0c <- 0x0038033f
+V (26799) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf896f000
+V (26804) adiv5: AP WR off=0x0c <- 0xf896f000
+V (26809) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00280005
+V (26813) adiv5: AP WR off=0x0c <- 0x00280005
+V (26818) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2804b2c0
+V (26822) adiv5: AP WR off=0x0c <- 0x2804b2c0
+V (26827) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4e56d10f
+V (26832) adiv5: AP WR off=0x0c <- 0x4e56d10f
+V (26837) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43046830
+V (26841) adiv5: AP WR off=0x0c <- 0x43046830
+V (26846) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68306034
+V (26851) adiv5: AP WR off=0x0c <- 0x68306034
+V (26855) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43012140
+V (26860) adiv5: AP WR off=0x0c <- 0x43012140
+V (26865) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00386031
+V (26869) adiv5: AP WR off=0x0c <- 0x00386031
+V (26874) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf886f000
+V (26879) adiv5: AP WR off=0x0c <- 0xf886f000
+V (26884) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68300005
+V (26888) adiv5: AP WR off=0x0c <- 0x68300005
+V (26893) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43882104
+V (26897) adiv5: AP WR off=0x0c <- 0x43882104
+V (26902) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00286030
+V (26907) adiv5: AP WR off=0x0c <- 0x00286030
+V (26912) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbdf2b2c0
+V (26916) adiv5: AP WR off=0x0c <- 0xbdf2b2c0
+V (26921) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb081b5f3
+V (26926) adiv5: AP WR off=0x0c <- 0xb081b5f3
+V (26930) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x26040004
+V (26935) adiv5: AP WR off=0x0c <- 0x26040004
+V (26940) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x90002000
+V (26944) adiv5: AP WR off=0x0c <- 0x90002000
+V (26949) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x033f27b0
+V (26954) adiv5: AP WR off=0x0c <- 0x033f27b0
+V (26959) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf0000038
+V (26963) adiv5: AP WR off=0x0c <- 0xf0000038
+V (26968) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0005f873
+V (26972) adiv5: AP WR off=0x0c <- 0x0005f873
+V (26977) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2c00028
+V (26982) adiv5: AP WR off=0x0c <- 0xb2c00028
+V (26987) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd1222804
+V (26991) adiv5: AP WR off=0x0c <- 0xd1222804
+V (26996) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68304e44
+V (27001) adiv5: AP WR off=0x0c <- 0x68304e44
+V (27005) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43012101
+V (27010) adiv5: AP WR off=0x0c <- 0x43012101
+V (27015) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x98026031
+V (27019) adiv5: AP WR off=0x0c <- 0x98026031
+V (27024) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00388020
+V (27029) adiv5: AP WR off=0x0c <- 0x00388020
+V (27034) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf864f000
+V (27038) adiv5: AP WR off=0x0c <- 0xf864f000
+V (27043) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00280005
+V (27047) adiv5: AP WR off=0x0c <- 0x00280005
+V (27052) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2804b2c0
+V (27057) adiv5: AP WR off=0x0c <- 0x2804b2c0
+V (27062) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0020d10f
+V (27066) adiv5: AP WR off=0x0c <- 0x0020d10f
+V (27071) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x90001c80
+V (27076) adiv5: AP WR off=0x0c <- 0x90001c80
+V (27080) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0c009802
+V (27085) adiv5: AP WR off=0x0c <- 0x0c009802
+V (27090) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x80089900
+V (27094) adiv5: AP WR off=0x0c <- 0x80089900
+V (27099) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf0000038
+V (27104) adiv5: AP WR off=0x0c <- 0xf0000038
+V (27109) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0005f855
+V (27113) adiv5: AP WR off=0x0c <- 0x0005f855
+V (27118) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21016830
+V (27123) adiv5: AP WR off=0x0c <- 0x21016830
+V (27127) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000400
+V (27132) adiv5: AP WR off=0x04 <- 0x20000400
+V (27137) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60304388
+V (27141) adiv5: AP WR off=0x0c <- 0x60304388
+D (27145) adiv5: block WR  addr=0x20000404, 62 szó (248 bájt)
+V (27152) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
+V (27156) adiv5: AP WR off=0x00 <- 0x03000052
+V (27161) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000404
+V (27166) adiv5: AP WR off=0x04 <- 0x20000404
+V (27170) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x6830e003
+V (27175) adiv5: AP WR off=0x0c <- 0x6830e003
+V (27180) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43882101
+V (27184) adiv5: AP WR off=0x0c <- 0x43882101
+V (27189) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00286030
+V (27194) adiv5: AP WR off=0x0c <- 0x00286030
+V (27199) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbdfeb2c0
+V (27203) adiv5: AP WR off=0x0c <- 0xbdfeb2c0
+V (27208) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0007b5f2
+V (27212) adiv5: AP WR off=0x0c <- 0x0007b5f2
+V (27217) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x24b02604
+V (27222) adiv5: AP WR off=0x0c <- 0x24b02604
+V (27227) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00200324
+V (27231) adiv5: AP WR off=0x0c <- 0x00200324
+V (27236) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf840f000
+V (27241) adiv5: AP WR off=0x0c <- 0xf840f000
+V (27245) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00280005
+V (27250) adiv5: AP WR off=0x0c <- 0x00280005
+V (27255) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2804b2c0
+V (27259) adiv5: AP WR off=0x0c <- 0x2804b2c0
+V (27264) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4e2bd10f
+V (27269) adiv5: AP WR off=0x0c <- 0x4e2bd10f
+V (27274) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x21016830
+V (27278) adiv5: AP WR off=0x0c <- 0x21016830
+V (27283) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x60314301
+V (27287) adiv5: AP WR off=0x0c <- 0x60314301
+V (27292) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x88004668
+V (27297) adiv5: AP WR off=0x0c <- 0x88004668
+V (27302) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00208038
+V (27306) adiv5: AP WR off=0x0c <- 0x00208038
+V (27311) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf830f000
+V (27316) adiv5: AP WR off=0x0c <- 0xf830f000
+V (27320) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x68300005
+V (27325) adiv5: AP WR off=0x0c <- 0x68300005
+V (27330) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x43882101
+V (27334) adiv5: AP WR off=0x0c <- 0x43882101
+V (27339) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00286030
+V (27344) adiv5: AP WR off=0x0c <- 0x00286030
+V (27349) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbdf2b2c0
+V (27353) adiv5: AP WR off=0x0c <- 0xbdf2b2c0
+V (27357) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x0001b500
+W (27363) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (27369) adiv5: re-sync #8: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (27378) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (27383) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (27389) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (27394) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (27399) adiv5: 8 idle bit a switch után
+V (27402) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (27416) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (27416) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (27418) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (27424) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (27429) adiv5: 8 idle bit a switch után
+V (27433) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (27438) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (27444) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (27448) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (27456) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001b500
+V (27460) adiv5: AP WR off=0x0c <- 0x0001b500 (retry után)
+V (27466) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00022000
+V (27471) adiv5: AP WR off=0x0c <- 0x00022000
+V (27475) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x681b4b24
+V (27480) adiv5: AP WR off=0x0c <- 0x681b4b24
+V (27485) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2b00400b
+V (27489) adiv5: AP WR off=0x0c <- 0x2b00400b
+V (27494) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2001d001
+V (27499) adiv5: AP WR off=0x0c <- 0x2001d001
+V (27504) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2c0e7ff
+V (27508) adiv5: AP WR off=0x0c <- 0xb2c0e7ff
+V (27513) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4920bd00
+V (27518) adiv5: AP WR off=0x0c <- 0x4920bd00
+V (27522) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x47706008
+V (27527) adiv5: AP WR off=0x0c <- 0x47706008
+V (27532) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2004b510
+V (27536) adiv5: AP WR off=0x0c <- 0x2004b510
+V (27541) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x22010001
+V (27546) adiv5: AP WR off=0x0c <- 0x22010001
+V (27550) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x681c4b1c
+V (27555) adiv5: AP WR off=0x0c <- 0x681c4b1c
+V (27560) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2c004014
+V (27564) adiv5: AP WR off=0x0c <- 0x2c004014
+V (27569) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0010d001
+V (27574) adiv5: AP WR off=0x0c <- 0x0010d001
+V (27579) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x681ae00a
+V (27583) adiv5: AP WR off=0x0c <- 0x681ae00a
+V (27588) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd50106d2
+V (27593) adiv5: AP WR off=0x0c <- 0xd50106d2
+V (27597) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe0052002
+V (27602) adiv5: AP WR off=0x0c <- 0xe0052002
+V (27607) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4002681a
+V (27611) adiv5: AP WR off=0x0c <- 0x4002681a
+V (27616) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0012a00
+V (27621) adiv5: AP WR off=0x0c <- 0xd0012a00
+V (27625) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe7ff2003
+V (27630) adiv5: AP WR off=0x0c <- 0xe7ff2003
+V (27635) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbd10b2c0
+V (27639) adiv5: AP WR off=0x0c <- 0xbd10b2c0
+V (27644) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0004b570
+V (27649) adiv5: AP WR off=0x0c <- 0x0004b570
+V (27654) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf7ff2604
+V (27658) adiv5: AP WR off=0x0c <- 0xf7ff2604
+V (27663) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0005ffe3
+V (27668) adiv5: AP WR off=0x0c <- 0x0005ffe3
+V (27672) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2c00028
+V (27677) adiv5: AP WR off=0x0c <- 0xb2c00028
+V (27682) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd1092801
+V (27686) adiv5: AP WR off=0x0c <- 0xd1092801
+V (27691) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0072c00
+V (27696) adiv5: AP WR off=0x0c <- 0xd0072c00
+V (27700) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xffdaf7ff
+V (27705) adiv5: AP WR off=0x0c <- 0xffdaf7ff
+V (27710) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x480c0005
+V (27714) adiv5: AP WR off=0x0c <- 0x480c0005
+V (27719) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x6008490c
+V (27724) adiv5: AP WR off=0x0c <- 0x6008490c
+V (27729) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe7f11e64
+V (27733) adiv5: AP WR off=0x0c <- 0xe7f11e64
+V (27738) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd1012c00
+V (27743) adiv5: AP WR off=0x0c <- 0xd1012c00
+V (27747) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00052005
+V (27752) adiv5: AP WR off=0x0c <- 0x00052005
+V (27757) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb2c00028
+V (27761) adiv5: AP WR off=0x0c <- 0xb2c00028
+V (27766) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0000bd70
+V (27771) adiv5: AP WR off=0x0c <- 0x0000bd70
+V (27775) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40022010
+V (27780) adiv5: AP WR off=0x0c <- 0x40022010
+V (27785) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40022004
+V (27789) adiv5: AP WR off=0x0c <- 0x40022004
+V (27794) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x45670123
+V (27799) adiv5: AP WR off=0x0c <- 0x45670123
+V (27804) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xcdef89ab
+V (27808) adiv5: AP WR off=0x0c <- 0xcdef89ab
+V (27813) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40022014
+V (27818) adiv5: AP WR off=0x0c <- 0x40022014
+V (27822) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4002200c
+V (27827) adiv5: AP WR off=0x0c <- 0x4002200c
+V (27832) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0000aaaa
+V (27836) adiv5: AP WR off=0x0c <- 0x0000aaaa
+V (27841) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x40003000
+V (27846) adiv5: AP WR off=0x0c <- 0x40003000
+D (27850) flm_runner: PrgCode betoltve 1272 B @ 0x20000004
+V (27856) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000500
+V (27860) adiv5: AP WR off=0x04 <- 0x20000500
+V (27865) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbe00be00
+V (27870) adiv5: AP WR off=0x0c <- 0xbe00be00
+V (27874) adiv5: wr32 0x20000500 <- 0xbe00be00
+I (27878) flm_runner: programozás indul: '0x440' (abi=ST) 0x08000000 +29288 B
+I (27885) flm_runner: Init (ST)
+D (27887) flm_runner: call pc=0x20000004 r0=0x00000000 r1=0x00000000 r2=0x00000000 r3=0x00000000
+V (27897) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (27901) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (27906) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x00000000
+W (27911) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (27917) adiv5: re-sync #9: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (27926) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (27931) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (27937) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (27943) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (27948) adiv5: 8 idle bit a switch után
+V (27951) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (27964) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (27964) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (27967) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (27972) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (27977) adiv5: 8 idle bit a switch után
+V (27981) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (27986) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (27992) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (27996) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (28004) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (28008) adiv5: AP WR off=0x0c <- 0x00000000 (retry után)
+V (28014) adiv5: wr32 0xe000edf8 <- 0x00000000
+V (28019) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28023) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28028) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010000
+V (28033) adiv5: AP WR off=0x0c <- 0x00010000
+V (28036) adiv5: wr32 0xe000edf4 <- 0x00010000
+V (28041) cortexm: reg[0] <- 0x00000000
+V (28045) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28050) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28055) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28059) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28065) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28069) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28074) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28079) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28083) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28088) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (28093) adiv5: AP WR off=0x0c <- 0x00000000
+V (28097) adiv5: wr32 0xe000edf8 <- 0x00000000
+V (28102) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28106) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28111) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010001
+V (28116) adiv5: AP WR off=0x0c <- 0x00010001
+V (28119) adiv5: wr32 0xe000edf4 <- 0x00010001
+V (28124) cortexm: reg[1] <- 0x00000000
+V (28128) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28133) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28137) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28142) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28148) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28152) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28157) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28162) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28166) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28171) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (28176) adiv5: AP WR off=0x0c <- 0x00000000
+V (28180) adiv5: wr32 0xe000edf8 <- 0x00000000
+V (28185) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28189) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28194) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010002
+V (28199) adiv5: AP WR off=0x0c <- 0x00010002
+V (28202) adiv5: wr32 0xe000edf4 <- 0x00010002
+V (28207) cortexm: reg[2] <- 0x00000000
+V (28211) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28216) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28220) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28225) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28231) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28235) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28240) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28245) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28249) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28254) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (28259) adiv5: AP WR off=0x0c <- 0x00000000
+V (28263) adiv5: wr32 0xe000edf8 <- 0x00000000
+V (28268) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28272) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28277) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010003
+V (28282) adiv5: AP WR off=0x0c <- 0x00010003
+V (28285) adiv5: wr32 0xe000edf4 <- 0x00010003
+V (28290) cortexm: reg[3] <- 0x00000000
+V (28294) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28299) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28303) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28308) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28314) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28318) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28323) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28328) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28332) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28337) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20000908
+V (28342) adiv5: AP WR off=0x0c <- 0x20000908
+V (28345) adiv5: wr32 0xe000edf8 <- 0x20000908
+V (28351) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28355) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28360) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001000d
+V (28364) adiv5: AP WR off=0x0c <- 0x0001000d
+V (28368) adiv5: wr32 0xe000edf4 <- 0x0001000d
+V (28373) cortexm: reg[13] <- 0x20000908
+V (28377) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28382) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28387) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28391) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28397) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28401) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28406) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28411) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28415) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28420) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20000501
+V (28425) adiv5: AP WR off=0x0c <- 0x20000501
+V (28429) adiv5: wr32 0xe000edf8 <- 0x20000501
+V (28434) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28438) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28443) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001000e
+V (28448) adiv5: AP WR off=0x0c <- 0x0001000e
+V (28451) adiv5: wr32 0xe000edf4 <- 0x0001000e
+V (28456) cortexm: reg[14] <- 0x20000501
+V (28460) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28465) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28470) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28474) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28480) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28485) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28489) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28494) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28498) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28503) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20000005
+V (28508) adiv5: AP WR off=0x0c <- 0x20000005
+V (28512) adiv5: wr32 0xe000edf8 <- 0x20000005
+V (28517) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28521) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28526) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001000f
+V (28531) adiv5: AP WR off=0x0c <- 0x0001000f
+V (28535) adiv5: wr32 0xe000edf4 <- 0x0001000f
+V (28539) cortexm: reg[15] <- 0x20000005
+V (28543) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28548) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28553) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28557) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28563) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28568) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28572) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28577) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28581) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28586) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x01000000
+V (28591) adiv5: AP WR off=0x0c <- 0x01000000
+V (28595) adiv5: wr32 0xe000edf8 <- 0x01000000
+V (28600) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28604) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28609) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010010
+V (28614) adiv5: AP WR off=0x0c <- 0x00010010
+V (28618) adiv5: wr32 0xe000edf4 <- 0x00010010
+V (28622) cortexm: reg[16] <- 0x01000000
+V (28626) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28631) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28636) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28640) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28646) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28651) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28655) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28660) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000500
+V (28664) adiv5: AP WR off=0x04 <- 0x20000500
+V (28669) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbe00be00
+V (28674) adiv5: AP WR off=0x0c <- 0xbe00be00
+V (28678) adiv5: wr32 0x20000500 <- 0xbe00be00
+D (28682) cortexm: resume (DHCSR<-0xa05f0001)
+V (28687) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28691) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28696) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xa05f0001
+V (28701) adiv5: AP WR off=0x0c <- 0xa05f0001
+V (28705) adiv5: wr32 0xe000edf0 <- 0xa05f0001
+V (28710) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28714) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28719) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28724) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28730) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01030003
+V (28734) adiv5: DP RD  addr=0xc -> 0x01030003
+V (28738) adiv5: rd32 0xe000edf0 -> 0x01030003
+D (28742) cortexm: halt elérve (DHCSR=0x01030003, 33592 us alatt)
+V (28749) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28754) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28759) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0000000f
+V (28763) adiv5: AP WR off=0x0c <- 0x0000000f
+V (28767) adiv5: wr32 0xe000edf4 <- 0x0000000f
+V (28772) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28777) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28782) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28786) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28792) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28797) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28801) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28806) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28810) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28815) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28820) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28826) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x20000500
+V (28830) adiv5: DP RD  addr=0xc -> 0x20000500
+V (28834) adiv5: rd32 0xe000edf8 -> 0x20000500
+V (28839) cortexm: reg[15] -> 0x20000500
+V (28843) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (28848) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (28852) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (28857) adiv5: AP WR off=0x0c <- 0x00000000
+V (28861) adiv5: wr32 0xe000edf4 <- 0x00000000
+V (28866) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (28871) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (28875) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28880) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28886) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (28890) adiv5: DP RD  addr=0xc -> 0x00030003
+V (28894) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (28900) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28904) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28909) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (28913) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (28920) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00000001
+V (28924) adiv5: DP RD  addr=0xc -> 0x00000001
+V (28928) adiv5: rd32 0xe000edf8 -> 0x00000001
+V (28932) cortexm: reg[0] -> 0x00000001
+D (28936) flm_runner: ret=1 (elvart=1)
+I (28939) flm_runner: Erase tartomany 0x08000000..0x08007267 (ST SectorErase)
+D (28974) flm_runner: call pc=0x20000164 r0=0x08000000 r1=0x08007267 r2=0x00000000 r3=0x00000000
+V (28975) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (28977) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (28982) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08000000
+V (28986) adiv5: AP WR off=0x0c <- 0x08000000
+V (28990) adiv5: wr32 0xe000edf8 <- 0x08000000
+V (28995) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (29000) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (29005) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010000
+V (29009) adiv5: AP WR off=0x0c <- 0x00010000
+V (29013) adiv5: wr32 0xe000edf4 <- 0x00010000
+V (29017) cortexm: reg[0] <- 0x08000000
+V (29022) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29026) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29031) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29036) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29042) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (29046) adiv5: DP RD  addr=0xc -> 0x00030003
+V (29050) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (29055) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (29060) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (29065) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08007267
+V (29069) adiv5: AP WR off=0x0c <- 0x08007267
+V (29073) adiv5: wr32 0xe000edf8 <- 0x08007267
+V (29078) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (29083) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (29088) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010001
+V (29092) adiv5: AP WR off=0x0c <- 0x00010001
+V (29096) adiv5: wr32 0xe000edf4 <- 0x00010001
+V (29100) cortexm: reg[1] <- 0x08007267
+V (29105) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29109) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29114) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29119) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29125) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (29129) adiv5: DP RD  addr=0xc -> 0x00030003
+V (29133) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (29138) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (29143) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (29148) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (29152) adiv5: AP WR off=0x0c <- 0x00000000
+V (29156) adiv5: wr32 0xe000edf8 <- 0x00000000
+V (29161) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (29166) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (29171) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010002
+V (29175) adiv5: AP WR off=0x0c <- 0x00010002
+V (29179) adiv5: wr32 0xe000edf4 <- 0x00010002
+V (29183) cortexm: reg[2] <- 0x00000000
+V (29188) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29192) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29197) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29202) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29208) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (29212) adiv5: DP RD  addr=0xc -> 0x00030003
+V (29216) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (29221) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (29226) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (29231) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (29235) adiv5: AP WR off=0x0c <- 0x00000000
+V (29239) adiv5: wr32 0xe000edf8 <- 0x00000000
+V (29244) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (29249) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (29254) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010003
+V (29258) adiv5: AP WR off=0x0c <- 0x00010003
+V (29262) adiv5: wr32 0xe000edf4 <- 0x00010003
+V (29266) cortexm: reg[3] <- 0x00000000
+V (29271) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29275) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29280) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29285) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29291) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (29295) adiv5: DP RD  addr=0xc -> 0x00030003
+V (29299) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (29304) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (29309) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (29314) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20000908
+V (29318) adiv5: AP WR off=0x0c <- 0x20000908
+V (29322) adiv5: wr32 0xe000edf8 <- 0x20000908
+V (29327) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (29332) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (29337) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001000d
+V (29341) adiv5: AP WR off=0x0c <- 0x0001000d
+V (29345) adiv5: wr32 0xe000edf4 <- 0x0001000d
+V (29349) cortexm: reg[13] <- 0x20000908
+V (29354) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29358) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29363) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29368) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29374) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (29378) adiv5: DP RD  addr=0xc -> 0x00030003
+V (29382) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (29387) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (29392) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (29397) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20000501
+V (29401) adiv5: AP WR off=0x0c <- 0x20000501
+V (29405) adiv5: wr32 0xe000edf8 <- 0x20000501
+V (29410) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (29415) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (29420) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001000e
+V (29424) adiv5: AP WR off=0x0c <- 0x0001000e
+V (29428) adiv5: wr32 0xe000edf4 <- 0x0001000e
+V (29432) cortexm: reg[14] <- 0x20000501
+V (29437) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29441) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29446) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29451) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29457) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (29461) adiv5: DP RD  addr=0xc -> 0x00030003
+V (29465) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (29470) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (29475) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (29480) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20000165
+V (29484) adiv5: AP WR off=0x0c <- 0x20000165
+V (29488) adiv5: wr32 0xe000edf8 <- 0x20000165
+V (29493) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (29498) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (29503) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0001000f
+V (29507) adiv5: AP WR off=0x0c <- 0x0001000f
+V (29511) adiv5: wr32 0xe000edf4 <- 0x0001000f
+V (29515) cortexm: reg[15] <- 0x20000165
+V (29520) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29525) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29529) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29534) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29540) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (29544) adiv5: DP RD  addr=0xc -> 0x00030003
+V (29548) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (29554) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (29558) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (29563) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x01000000
+V (29567) adiv5: AP WR off=0x0c <- 0x01000000
+V (29571) adiv5: wr32 0xe000edf8 <- 0x01000000
+V (29576) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (29581) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (29586) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00010010
+V (29590) adiv5: AP WR off=0x0c <- 0x00010010
+V (29594) adiv5: wr32 0xe000edf4 <- 0x00010010
+V (29598) cortexm: reg[16] <- 0x01000000
+V (29603) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29608) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29612) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29617) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29623) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (29627) adiv5: DP RD  addr=0xc -> 0x00030003
+V (29632) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (29637) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000500
+V (29641) adiv5: AP WR off=0x04 <- 0x20000500
+V (29646) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbe00be00
+V (29651) adiv5: AP WR off=0x0c <- 0xbe00be00
+V (29654) adiv5: wr32 0x20000500 <- 0xbe00be00
+D (29659) cortexm: resume (DHCSR<-0xa05f0001)
+V (29664) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29668) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29673) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xa05f0001
+V (29678) adiv5: AP WR off=0x0c <- 0xa05f0001
+V (29681) adiv5: wr32 0xe000edf0 <- 0xa05f0001
+V (29687) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29691) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29696) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29700) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29707) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29711) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29715) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29720) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29725) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29730) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29734) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29740) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29744) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29749) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29754) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29758) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29763) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29767) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29774) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29778) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29782) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29787) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29792) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29797) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29801) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29807) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29812) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29816) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29821) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29825) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29830) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29835) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29841) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29845) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29849) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29855) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29859) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29864) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29868) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29875) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29879) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29883) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29889) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29893) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29897) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29902) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29908) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29912) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29917) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29922) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29926) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29931) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29935) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29942) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29946) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29950) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29955) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29960) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29965) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (29969) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (29975) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (29980) adiv5: DP RD  addr=0xc -> 0x01000001
+V (29984) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (29990) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (29993) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (29998) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30003) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30009) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (30013) adiv5: DP RD  addr=0xc -> 0x01000001
+V (30017) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (30022) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30027) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30032) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30036) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30042) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (30047) adiv5: DP RD  addr=0xc -> 0x01000001
+V (30051) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (30056) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30061) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30065) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30070) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30076) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (30080) adiv5: DP RD  addr=0xc -> 0x01000001
+V (30085) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (30090) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30094) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30099) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30103) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30110) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (30114) adiv5: DP RD  addr=0xc -> 0x01000001
+V (30118) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (30123) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30128) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30133) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30137) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30143) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (30148) adiv5: DP RD  addr=0xc -> 0x01000001
+V (30152) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (30157) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30161) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30166) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30171) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30177) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x01000001
+V (30181) adiv5: DP RD  addr=0xc -> 0x01000001
+V (30185) adiv5: rd32 0xe000edf0 -> 0x01000001
+V (30190) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30195) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30199) adiv5: raw RD  AP addr=0xc ACK=??? (0x0)
+W (30203) adiv5: AP RD off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (30210) adiv5: re-sync #10: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (30218) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (30224) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30229) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30235) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30240) adiv5: 8 idle bit a switch után
+V (30243) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (30256) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (30256) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30259) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30264) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30270) adiv5: 8 idle bit a switch után
+V (30273) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (30279) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (30284) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (30288) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (30295) adiv5: raw RD  AP addr=0xc ACK=??? (0x0)
+W (30300) adiv5: AP RD off=0x0c protokollhiba (ACK=0x0) -> re-sync #2
+W (30306) adiv5: re-sync #11: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (30315) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (30320) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30326) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30331) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30336) adiv5: 8 idle bit a switch után
+V (30339) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (30352) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (30352) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30355) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30361) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30366) adiv5: 8 idle bit a switch után
+V (30370) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (30375) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (30380) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (30385) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (30392) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30397) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000 (retry után)
+V (30404) adiv5: raw RD  DP addr=0xc ACK=??? (0x0)
+W (30408) adiv5: DP RD  addr=0xc protokollhiba (ACK=0x0) -> re-sync #1
+W (30414) adiv5: re-sync #12: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (30423) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (30428) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30434) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30439) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30444) adiv5: 8 idle bit a switch után
+V (30448) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (30461) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (30461) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30464) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30469) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30474) adiv5: 8 idle bit a switch után
+V (30478) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (30483) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (30489) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (30493) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (30500) adiv5: raw RD  DP addr=0xc ACK=??? (0x0)
+W (30504) adiv5: DP RD  addr=0xc protokollhiba (ACK=0x0) -> re-sync #2
+W (30511) adiv5: re-sync #13: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (30519) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (30525) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30530) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30536) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30541) adiv5: 8 idle bit a switch után
+V (30544) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (30557) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (30557) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30560) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30565) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30571) adiv5: 8 idle bit a switch után
+V (30575) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (30580) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (30585) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (30589) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (30597) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00000000
+V (30601) adiv5: DP RD  addr=0xc -> 0x00000000 (retry után)
+V (30607) adiv5: rd32 0xe000edf0 -> 0x00000000
+V (30612) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30616) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30621) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30626) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30632) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (30636) adiv5: DP RD  addr=0xc -> 0x00030003
+V (30640) adiv5: rd32 0xe000edf0 -> 0x00030003
+D (30645) cortexm: halt elérve (DHCSR=0x00030003, 958992 us alatt)
+V (30652) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (30656) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (30661) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0000000f
+V (30665) adiv5: AP WR off=0x0c <- 0x0000000f
+V (30669) adiv5: wr32 0xe000edf4 <- 0x0000000f
+V (30675) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30679) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30684) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30688) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30694) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (30699) adiv5: DP RD  addr=0xc -> 0x00030003
+V (30703) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (30707) adiv5: raw WR  AP addr=0x4 ACK=??? (0x0) adat=0xe000edf8
+W (30713) adiv5: AP WR off=0x04 protokollhiba (ACK=0x0) -> re-sync #1
+W (30719) adiv5: re-sync #14: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (30728) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (30733) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30739) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30744) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30750) adiv5: 8 idle bit a switch után
+V (30753) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (30766) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (30766) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30769) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30774) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30779) adiv5: 8 idle bit a switch után
+V (30783) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (30788) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (30794) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (30798) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (30806) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (30810) adiv5: AP WR off=0x04 <- 0xe000edf8 (retry után)
+V (30816) adiv5: raw RD  AP addr=0xc ACK=??? (0x0)
+W (30820) adiv5: AP RD off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (30826) adiv5: re-sync #15: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (30835) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (30840) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30846) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30851) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30856) adiv5: 8 idle bit a switch után
+V (30860) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (30873) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (30873) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (30876) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (30881) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (30886) adiv5: 8 idle bit a switch után
+V (30890) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (30895) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (30901) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (30905) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (30913) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30917) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000 (retry után)
+V (30925) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x20000500
+V (30929) adiv5: DP RD  addr=0xc -> 0x20000500
+V (30933) adiv5: rd32 0xe000edf8 -> 0x20000500
+V (30937) cortexm: reg[15] -> 0x20000500
+V (30942) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf4
+V (30946) adiv5: AP WR off=0x04 <- 0xe000edf4
+V (30951) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (30956) adiv5: AP WR off=0x0c <- 0x00000000
+V (30960) adiv5: wr32 0xe000edf4 <- 0x00000000
+V (30965) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf0
+V (30969) adiv5: AP WR off=0x04 <- 0xe000edf0
+V (30974) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (30978) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (30985) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00030003
+V (30989) adiv5: DP RD  addr=0xc -> 0x00030003
+V (30993) adiv5: rd32 0xe000edf0 -> 0x00030003
+V (30998) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0xe000edf8
+V (31003) adiv5: AP WR off=0x04 <- 0xe000edf8
+V (31008) adiv5: raw RD  AP addr=0xc ACK=OK adat=0x00000000
+V (31012) adiv5: AP RD (posted) off=0x0c -> prev=0x00000000
+V (31018) adiv5: raw RD  DP addr=0xc ACK=OK adat=0x00000001
+V (31023) adiv5: DP RD  addr=0xc -> 0x00000001
+V (31027) adiv5: rd32 0xe000edf8 -> 0x00000001
+V (31031) cortexm: reg[0] -> 0x00000001
+D (31034) flm_runner: ret=1 (elvart=1)
+I (31066) flm_runner: Program 29288 B @ 0x08000000 (page=1024 B)
+V (31094) flm_runner: page 0x08000000 (1024 B)
+D (31094) adiv5: block WR  addr=0x20000908, 64 szó (256 bájt)
+V (31095) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
+V (31098) adiv5: AP WR off=0x00 <- 0x03000052
+V (31103) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000908
+V (31107) adiv5: AP WR off=0x04 <- 0x20000908
+V (31112) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20002000
+V (31117) adiv5: AP WR off=0x0c <- 0x20002000
+V (31122) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08003555
+V (31126) adiv5: AP WR off=0x0c <- 0x08003555
+V (31131) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08000881
+V (31136) adiv5: AP WR off=0x0c <- 0x08000881
+V (31140) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08000883
+V (31145) adiv5: AP WR off=0x0c <- 0x08000883
+V (31150) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31154) adiv5: AP WR off=0x0c <- 0x00000000
+V (31159) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31164) adiv5: AP WR off=0x0c <- 0x00000000
+V (31169) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31173) adiv5: AP WR off=0x0c <- 0x00000000
+V (31178) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31182) adiv5: AP WR off=0x0c <- 0x00000000
+V (31187) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31192) adiv5: AP WR off=0x0c <- 0x00000000
+V (31197) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31201) adiv5: AP WR off=0x0c <- 0x00000000
+V (31206) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31211) adiv5: AP WR off=0x0c <- 0x00000000
+V (31216) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08000885
+V (31220) adiv5: AP WR off=0x0c <- 0x08000885
+V (31225) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31229) adiv5: AP WR off=0x0c <- 0x00000000
+V (31234) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31239) adiv5: AP WR off=0x0c <- 0x00000000
+V (31244) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08000887
+V (31248) adiv5: AP WR off=0x0c <- 0x08000887
+V (31253) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08000889
+V (31257) adiv5: AP WR off=0x0c <- 0x08000889
+V (31262) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31267) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31272) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31276) adiv5: AP WR off=0x0c <- 0x00000000
+V (31281) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31286) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31290) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31295) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31300) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31304) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31309) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31314) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31319) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31323) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31328) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31332) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31337) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31342) adiv5: AP WR off=0x0c <- 0x00000000
+V (31347) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31351) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31356) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31361) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31365) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31370) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31375) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31379) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31384) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31389) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31394) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31398) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31403) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31407) adiv5: AP WR off=0x0c <- 0x00000000
+V (31412) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08000891
+V (31417) adiv5: AP WR off=0x0c <- 0x08000891
+V (31422) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31426) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31431) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31436) adiv5: AP WR off=0x0c <- 0x00000000
+V (31440) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31445) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31450) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31454) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31459) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31464) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31469) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31473) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31478) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31482) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31487) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31492) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31497) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31501) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31506) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x080035a5
+V (31511) adiv5: AP WR off=0x0c <- 0x080035a5
+V (31515) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08002c69
+V (31520) adiv5: AP WR off=0x0c <- 0x08002c69
+V (31525) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08002e71
+V (31529) adiv5: AP WR off=0x0c <- 0x08002e71
+V (31534) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31539) adiv5: AP WR off=0x0c <- 0x00000000
+V (31544) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31548) adiv5: AP WR off=0x0c <- 0x00000000
+V (31553) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31557) adiv5: AP WR off=0x0c <- 0x00000000
+V (31562) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4c06b510
+V (31567) adiv5: AP WR off=0x0c <- 0x4c06b510
+V (31572) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2b007823
+V (31576) adiv5: AP WR off=0x0c <- 0x2b007823
+V (31581) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4b05d107
+V (31586) adiv5: AP WR off=0x0c <- 0x4b05d107
+V (31590) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0022b00
+V (31595) adiv5: AP WR off=0x0c <- 0xd0022b00
+V (31600) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe0004804
+V (31604) adiv5: AP WR off=0x0c <- 0xe0004804
+V (31609) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2301bf00
+V (31614) adiv5: AP WR off=0x0c <- 0x2301bf00
+V (31619) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbd107023
+V (31623) adiv5: AP WR off=0x0c <- 0xbd107023
+V (31628) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20000864
+V (31632) adiv5: AP WR off=0x0c <- 0x20000864
+V (31637) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31642) adiv5: AP WR off=0x0c <- 0x00000000
+V (31647) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0800617c
+V (31651) adiv5: AP WR off=0x0c <- 0x0800617c
+V (31656) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xb5104b04
+V (31661) adiv5: AP WR off=0x0c <- 0xb5104b04
+V (31665) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0032b00
+V (31670) adiv5: AP WR off=0x0c <- 0xd0032b00
+V (31675) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x48044903
+V (31679) adiv5: AP WR off=0x0c <- 0x48044903
+V (31684) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbf00e000
+V (31689) adiv5: AP WR off=0x0c <- 0xbf00e000
+V (31694) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x46c0bd10
+V (31698) adiv5: AP WR off=0x0c <- 0x46c0bd10
+V (31703) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00000000
+V (31707) adiv5: AP WR off=0x0c <- 0x00000000
+D (31711) adiv5: block WR  addr=0x20000a08, 64 szó (256 bájt)
+V (31718) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
+V (31722) adiv5: AP WR off=0x00 <- 0x03000052
+V (31727) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000a08
+V (31732) adiv5: AP WR off=0x04 <- 0x20000a08
+V (31737) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x20000868
+V (31741) adiv5: AP WR off=0x0c <- 0x20000868
+V (31746) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0800617c
+V (31751) adiv5: AP WR off=0x0c <- 0x0800617c
+V (31755) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4671b402
+V (31760) adiv5: AP WR off=0x0c <- 0x4671b402
+V (31765) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00490849
+V (31769) adiv5: AP WR off=0x0c <- 0x00490849
+V (31774) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00495c09
+V (31779) adiv5: AP WR off=0x0c <- 0x00495c09
+V (31784) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xbc02448e
+V (31788) adiv5: AP WR off=0x0c <- 0xbc02448e
+V (31793) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x46c04770
+V (31797) adiv5: AP WR off=0x0c <- 0x46c04770
+V (31802) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4671b403
+V (31807) adiv5: AP WR off=0x0c <- 0x4671b403
+V (31812) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00400849
+V (31816) adiv5: AP WR off=0x0c <- 0x00400849
+V (31821) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x5e090049
+V (31826) adiv5: AP WR off=0x0c <- 0x5e090049
+V (31830) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x448e0049
+V (31835) adiv5: AP WR off=0x0c <- 0x448e0049
+V (31840) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4770bc03
+V (31844) adiv5: AP WR off=0x0c <- 0x4770bc03
+V (31849) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4671b403
+V (31854) adiv5: AP WR off=0x0c <- 0x4671b403
+V (31859) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x00400849
+V (31863) adiv5: AP WR off=0x0c <- 0x00400849
+V (31868) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x5a090049
+V (31872) adiv5: AP WR off=0x0c <- 0x5a090049
+V (31877) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x448e0049
+V (31882) adiv5: AP WR off=0x0c <- 0x448e0049
+V (31887) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4770bc03
+V (31891) adiv5: AP WR off=0x0c <- 0x4770bc03
+V (31896) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08432200
+V (31901) adiv5: AP WR off=0x0c <- 0x08432200
+V (31905) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd374428b
+V (31910) adiv5: AP WR off=0x0c <- 0xd374428b
+V (31915) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0903
+V (31919) adiv5: AP WR off=0x0c <- 0x428b0903
+V (31924) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0a03d35f
+V (31929) adiv5: AP WR off=0x0c <- 0x0a03d35f
+V (31934) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd344428b
+V (31938) adiv5: AP WR off=0x0c <- 0xd344428b
+V (31943) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0b03
+V (31947) adiv5: AP WR off=0x0c <- 0x428b0b03
+V (31952) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0c03d328
+V (31957) adiv5: AP WR off=0x0c <- 0x0c03d328
+V (31962) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd30d428b
+V (31966) adiv5: AP WR off=0x0c <- 0xd30d428b
+V (31971) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x020922ff
+V (31976) adiv5: AP WR off=0x0c <- 0x020922ff
+V (31980) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0c03ba12
+V (31985) adiv5: AP WR off=0x0c <- 0x0c03ba12
+V (31990) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd302428b
+V (31994) adiv5: AP WR off=0x0c <- 0xd302428b
+V (31999) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x02091212
+V (32004) adiv5: AP WR off=0x0c <- 0x02091212
+V (32009) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0b03d065
+V (32013) adiv5: AP WR off=0x0c <- 0x0b03d065
+V (32018) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd319428b
+V (32022) adiv5: AP WR off=0x0c <- 0xd319428b
+V (32027) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x0a09e000
+V (32032) adiv5: AP WR off=0x0c <- 0x0a09e000
+V (32037) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0bc3
+V (32041) adiv5: AP WR off=0x0c <- 0x428b0bc3
+V (32046) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x03cbd301
+V (32051) adiv5: AP WR off=0x0c <- 0x03cbd301
+V (32055) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x41521ac0
+V (32060) adiv5: AP WR off=0x0c <- 0x41521ac0
+V (32065) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0b83
+V (32069) adiv5: AP WR off=0x0c <- 0x428b0b83
+V (32074) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x038bd301
+V (32079) adiv5: AP WR off=0x0c <- 0x038bd301
+V (32084) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x41521ac0
+V (32088) adiv5: AP WR off=0x0c <- 0x41521ac0
+V (32093) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0b43
+V (32097) adiv5: AP WR off=0x0c <- 0x428b0b43
+V (32102) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x034bd301
+V (32107) adiv5: AP WR off=0x0c <- 0x034bd301
+V (32112) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x41521ac0
+V (32116) adiv5: AP WR off=0x0c <- 0x41521ac0
+V (32121) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0b03
+V (32126) adiv5: AP WR off=0x0c <- 0x428b0b03
+V (32130) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x030bd301
+V (32135) adiv5: AP WR off=0x0c <- 0x030bd301
+V (32140) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x41521ac0
+V (32144) adiv5: AP WR off=0x0c <- 0x41521ac0
+V (32149) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0ac3
+V (32154) adiv5: AP WR off=0x0c <- 0x428b0ac3
+V (32159) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x02cbd301
+V (32163) adiv5: AP WR off=0x0c <- 0x02cbd301
+V (32168) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x41521ac0
+V (32172) adiv5: AP WR off=0x0c <- 0x41521ac0
+V (32177) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0a83
+V (32182) adiv5: AP WR off=0x0c <- 0x428b0a83
+V (32187) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x028bd301
+V (32191) adiv5: AP WR off=0x0c <- 0x028bd301
+V (32196) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x41521ac0
+V (32201) adiv5: AP WR off=0x0c <- 0x41521ac0
+V (32205) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0a43
+V (32210) adiv5: AP WR off=0x0c <- 0x428b0a43
+V (32215) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x024bd301
+V (32219) adiv5: AP WR off=0x0c <- 0x024bd301
+V (32224) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x41521ac0
+V (32229) adiv5: AP WR off=0x0c <- 0x41521ac0
+V (32233) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x428b0a03
+V (32238) adiv5: AP WR off=0x0c <- 0x428b0a03
+V (32243) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x020bd301
+V (32247) adiv5: AP WR off=0x0c <- 0x020bd301
+V (32252) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x41521ac0
+V (32257) adiv5: AP WR off=0x0c <- 0x41521ac0
+V (32262) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x09c3d2cd
+V (32266) adiv5: AP WR off=0x0c <- 0x09c3d2cd
+V (32271) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd301428b
+V (32275) adiv5: AP WR off=0x0c <- 0xd301428b
+V (32280) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ac001cb
+V (32285) adiv5: AP WR off=0x0c <- 0x1ac001cb
+V (32290) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x09834152
+V (32294) adiv5: AP WR off=0x0c <- 0x09834152
+V (32299) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd301428b
+V (32304) adiv5: AP WR off=0x0c <- 0xd301428b
+V (32308) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ac0018b
+V (32313) adiv5: AP WR off=0x0c <- 0x1ac0018b
+V (32318) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x09434152
+V (32322) adiv5: AP WR off=0x0c <- 0x09434152
+V (32327) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd301428b
+V (32332) adiv5: AP WR off=0x0c <- 0xd301428b
+D (32336) adiv5: block WR  addr=0x20000b08, 64 szó (256 bájt)
+V (32342) adiv5: raw WR  AP addr=0x0 ACK=OK adat=0x03000052
+V (32347) adiv5: AP WR off=0x00 <- 0x03000052
+V (32352) adiv5: raw WR  AP addr=0x4 ACK=OK adat=0x20000b08
+V (32356) adiv5: AP WR off=0x04 <- 0x20000b08
+V (32361) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ac0014b
+V (32366) adiv5: AP WR off=0x0c <- 0x1ac0014b
+V (32370) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x09034152
+V (32375) adiv5: AP WR off=0x0c <- 0x09034152
+V (32380) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd301428b
+V (32384) adiv5: AP WR off=0x0c <- 0xd301428b
+V (32389) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ac0010b
+V (32394) adiv5: AP WR off=0x0c <- 0x1ac0010b
+V (32398) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08c34152
+V (32403) adiv5: AP WR off=0x0c <- 0x08c34152
+V (32408) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd301428b
+V (32412) adiv5: AP WR off=0x0c <- 0xd301428b
+V (32417) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ac000cb
+V (32422) adiv5: AP WR off=0x0c <- 0x1ac000cb
+V (32427) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08834152
+V (32431) adiv5: AP WR off=0x0c <- 0x08834152
+V (32436) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd301428b
+V (32440) adiv5: AP WR off=0x0c <- 0xd301428b
+V (32446) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ac0008b
+V (32450) adiv5: AP WR off=0x0c <- 0x1ac0008b
+V (32455) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x08434152
+V (32459) adiv5: AP WR off=0x0c <- 0x08434152
+V (32464) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd301428b
+V (32469) adiv5: AP WR off=0x0c <- 0xd301428b
+V (32473) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1ac0004b
+V (32478) adiv5: AP WR off=0x0c <- 0x1ac0004b
+V (32483) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x1a414152
+V (32487) adiv5: AP WR off=0x0c <- 0x1a414152
+V (32492) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4601d200
+V (32497) adiv5: AP WR off=0x0c <- 0x4601d200
+V (32502) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x46104152
+V (32506) adiv5: AP WR off=0x0c <- 0x46104152
+V (32511) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xe7ff4770
+V (32515) adiv5: AP WR off=0x0c <- 0xe7ff4770
+V (32520) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x2000b501
+V (32525) adiv5: AP WR off=0x0c <- 0x2000b501
+V (32530) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xf806f000
+V (32534) adiv5: AP WR off=0x0c <- 0xf806f000
+V (32539) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x46c0bd02
+V (32544) adiv5: AP WR off=0x0c <- 0x46c0bd02
+V (32548) adiv5: raw WR  AP addr=0xc ACK=OK adat=0xd0f72900
+V (32553) adiv5: AP WR off=0x0c <- 0xd0f72900
+V (32558) adiv5: raw WR  AP addr=0xc ACK=OK adat=0x4770e776
+V (32562) adiv5: AP WR off=0x0c <- 0x4770e776
+V (32567) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x46c04770
+W (32572) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #1
+W (32578) adiv5: re-sync #16: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (32587) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (32593) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (32598) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (32603) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (32609) adiv5: 8 idle bit a switch után
+V (32612) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (32625) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (32625) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (32628) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (32633) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (32639) adiv5: 8 idle bit a switch után
+V (32642) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (32647) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (32653) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (32657) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (32664) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x46c04770
+W (32670) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #2
+W (32676) adiv5: re-sync #17: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (32685) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (32690) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (32696) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (32701) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (32706) adiv5: 8 idle bit a switch után
+V (32710) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (32723) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (32723) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (32726) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (32731) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (32736) adiv5: 8 idle bit a switch után
+V (32740) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (32745) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (32751) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (32755) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (32762) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x46c04770
+W (32768) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #3
+W (32774) adiv5: re-sync #18: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (32783) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (32788) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (32793) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (32799) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (32804) adiv5: 8 idle bit a switch után
+V (32807) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (32820) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (32820) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (32823) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (32829) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (32834) adiv5: 8 idle bit a switch után
+V (32838) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (32843) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (32848) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (32853) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (32860) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x46c04770
+W (32866) adiv5: AP WR off=0x0c protokollhiba (ACK=0x0) -> re-sync #4
+W (32872) adiv5: re-sync #19: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)
+W (32880) adiv5: re-sync flush: szabad SWDIO szint=0 (valaki lehúzza)
+D (32886) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (32891) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (32897) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (32902) adiv5: 8 idle bit a switch után
+V (32905) adiv5: raw RD  DP addr=0x0 ACK=??? (0x0)
+W (32918) adiv5: re-sync flush: szabad SWDIO szint=1 (felhúzó/szabad)
+D (32918) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+D (32921) adiv5: JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)
+D (32926) adiv5: line reset (>=50 SWCLK, SWDIO=1)
+V (32932) adiv5: 8 idle bit a switch után
+V (32935) adiv5: raw RD  DP addr=0x0 ACK=OK adat=0x0bb11477
+V (32941) adiv5: raw WR  DP addr=0x0 ACK=OK adat=0x0000001e
+V (32946) adiv5: raw WR  DP addr=0x8 ACK=OK adat=0x00000000
+W (32950) adiv5: re-sync helyreállt a(z) 2. próbára (tétlen szünet után)
+V (32958) adiv5: raw WR  AP addr=0xc ACK=??? (0x0) adat=0x46c04770
+W (32963) adiv5: AP WR off=0x0c tartós protokollhiba (ACK=0x0)
+E (32969) prog_session: Program hiba: err=264 (fázis=3, 0%)
+E (33002) ui: flash hiba: ESP_ERR_INVALID_RESPONSE
+I (35566) main: [heartbeat] up=30s, heap=221059B, psram=8382056B
