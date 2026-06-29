@@ -17,6 +17,7 @@
 #include "driver/gpio.h"
 #include "driver/dedic_gpio.h"
 #include "hal/gpio_ll.h"
+#include "hal/dedic_gpio_cpu_ll.h"  /* nyers, egy-utasításos dedic GPIO (gyors út) */
 #include "soc/gpio_struct.h"
 #include "esp_rom_sys.h"      /* esp_rom_get_cpu_ticks_per_us */
 #include "esp_log.h"
@@ -37,6 +38,13 @@
 /* ============================ Modul-állapot ================================ */
 static dedic_gpio_bundle_handle_t s_out;  /* SWCLK+SWDIO kimeneti bundle */
 static dedic_gpio_bundle_handle_t s_in;   /* SWDIO bemeneti bundle */
+
+/* ABSZOLÚT dedic-csatorna maszkok (a bundle-offsettel eltolva), hogy a hot
+ * path a NYERS, egy-utasításos dedic_gpio_cpu_ll_* hívásokat használhassa a
+ * lassú, nem-inline dedic_gpio_bundle_write() helyett. Init-ben számoljuk. */
+static uint32_t s_ch_swclk;     /* kimeneti SWCLK csatorna-bit */
+static uint32_t s_ch_swdio;     /* kimeneti SWDIO csatorna-bit */
+static uint32_t s_ch_in_swdio;  /* bemeneti SWDIO csatorna-bit */
 
 /* Fél-órajel késleltetés ciklusokban (NOP-pörgetés). 0 = nincs extra delay. */
 static volatile uint32_t s_half_cycle_loops;
@@ -115,6 +123,18 @@ esp_err_t swd_phy_init(void)
         return err;
     }
 
+    /* --- Abszolút csatorna-maszkok a gyors úthoz ---
+     * A bundle a csatornákat egy offsettől allokálja; az out_pins[0]=SWCLK az
+     * (out_off+0), out_pins[1]=SWDIO az (out_off+1) csatorna, az in_pins[0]=SWDIO
+     * az (in_off+0). Ezekkel a hot path a nyers dedic_gpio_cpu_ll_* utasításokat
+     * hívhatja a lassú bundle-wrapper helyett. */
+    uint32_t out_off = 0, in_off = 0;
+    dedic_gpio_get_out_offset(s_out, &out_off);
+    dedic_gpio_get_in_offset(s_in, &in_off);
+    s_ch_swclk    = 1u << (out_off + 0);
+    s_ch_swdio    = 1u << (out_off + 1);
+    s_ch_in_swdio = 1u << (in_off + 0);
+
     /* --- KRITIKUS a turnaroundhoz: a SWDIO output-enable forrása ---
      * A dedic_gpio a kimeneti jelet a GPIO-mátrixon át vezeti, és a pad
      * output-enable-jét ALAPÉRTELMEZÉSBEN a dedic periféria adja (mindig
@@ -165,10 +185,11 @@ void swd_phy_seq_out(uint32_t bits, int n)
      * a korábbi 3 helyett, és nincs delay_half függvényhívás/volatile-olvasás.
      * Adat-setup + clk_low egy írásban, majd clk_high (felfutó él) a másikban. */
     if (s_half_cycle_loops == 0) {
+        const uint32_t m = s_ch_swclk | s_ch_swdio;   /* abszolút csatorna-maszk */
         for (int i = 0; i < n; i++) {
-            uint32_t sd = ((bits >> i) & 1u) ? SWDIO_MASK : 0u;
-            dedic_gpio_bundle_write(s_out, SWCLK_MASK | SWDIO_MASK, sd);               /* SWDIO + clk low */
-            dedic_gpio_bundle_write(s_out, SWCLK_MASK | SWDIO_MASK, sd | SWCLK_MASK);   /* clk high (él) */
+            uint32_t sd = ((bits >> i) & 1u) ? s_ch_swdio : 0u;
+            dedic_gpio_cpu_ll_write_mask(m, sd);                 /* SWDIO + clk low (1 utasítás) */
+            dedic_gpio_cpu_ll_write_mask(m, sd | s_ch_swclk);    /* clk high (él) (1 utasítás) */
         }
         return;
     }
@@ -194,12 +215,11 @@ uint32_t swd_phy_seq_in(int n)
      * delay_half overhead nélkül. (A mintavételi pozíció ugyanaz, mint lent.) */
     if (s_half_cycle_loops == 0) {
         for (int i = 0; i < n; i++) {
-            dedic_gpio_bundle_write(s_out, SWCLK_MASK, 0);            /* clk low */
-            uint32_t r = dedic_gpio_bundle_read_in(s_in);            /* minta a low fázisban */
-            if (r & IN_SWDIO_MASK) {
+            dedic_gpio_cpu_ll_write_mask(s_ch_swclk, 0);             /* clk low (1 utasítás) */
+            if (dedic_gpio_cpu_ll_read_in() & s_ch_in_swdio) {      /* minta a low fázisban */
                 out |= (1u << i);
             }
-            dedic_gpio_bundle_write(s_out, SWCLK_MASK, SWCLK_MASK);   /* clk high (él) */
+            dedic_gpio_cpu_ll_write_mask(s_ch_swclk, s_ch_swclk);    /* clk high (él) (1 utasítás) */
         }
         return out;
     }
