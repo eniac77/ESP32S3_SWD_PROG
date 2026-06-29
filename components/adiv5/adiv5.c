@@ -68,8 +68,9 @@ static bool     s_select_valid;
    olvasás ezt figyeli, hogy a posted-read pipeline-t re-sync esetén újraindítsa. */
 static uint32_t s_resync_count;
 
-/* Előre-deklarációk a re-sync-hez (line_reset lentebb van definiálva). */
+/* Előre-deklarációk a re-sync-hez (lentebb vannak definiálva). */
 static void      line_reset(void);
+static void      swd_wire_select(void);
 static esp_err_t dp_resync(void);
 
 /* AHB-AP CSW aktuális (visszaolvasott + módosított) értéke. */
@@ -233,23 +234,26 @@ static void dp_abort_clear(void)
 static esp_err_t dp_resync(void)
 {
     s_resync_count++;
-    ESP_LOGW(TAG, "re-sync #%lu: line reset + DPIDR (protokoll-hiba helyreállítás)",
+    ESP_LOGW(TAG, "re-sync #%lu: teljes SWJ switch + DPIDR (protokoll-hiba helyreállítás)",
              (unsigned long)s_resync_count);
 
-    line_reset();
-
+    /* Teljes wire-újraszinkronizálás: line reset + JTAG->SWD switch + line reset
+       + idle. A puszta line reset nem elég, ha a DP dormant/JTAG állapotba esett;
+       a switch-szekvencia visszaválasztja az SW-DP-t. */
     uint32_t dpidr = 0;
-    if (swd_read_raw(/*ap=*/false, DP_DPIDR, &dpidr) != ACK_OK) {
-        ESP_LOGW(TAG, "re-sync: DPIDR olvasás nem OK (a wire még csúszhat)");
-        return ESP_FAIL;
+    for (int i = 0; i < 3; i++) {
+        swd_wire_select();
+        if (swd_read_raw(/*ap=*/false, DP_DPIDR, &dpidr) == ACK_OK) {
+            /* Sticky hibák törlése + SELECT visszaállítás (ha volt érvényes). */
+            (void)swd_write_raw(/*ap=*/false, DP_ABORT, ABORT_CLR_ALL);
+            if (s_select_valid) {
+                (void)swd_write_raw(/*ap=*/false, DP_SELECT, s_select_shadow);
+            }
+            return ESP_OK;
+        }
     }
-
-    /* Sticky hibák törlése + SELECT visszaállítás (ha volt érvényes). */
-    (void)swd_write_raw(/*ap=*/false, DP_ABORT, ABORT_CLR_ALL);
-    if (s_select_valid) {
-        (void)swd_write_raw(/*ap=*/false, DP_SELECT, s_select_shadow);
-    }
-    return ESP_OK;
+    ESP_LOGW(TAG, "re-sync: DPIDR switch után sem OK (a cél valószínűleg nem hajt SWD-t)");
+    return ESP_FAIL;
 }
 
 /* ===================================================================== */
@@ -523,6 +527,23 @@ static void line_reset(void)
     swd_phy_idle(56);   /* >= 50 órajel SWDIO=1 */
 }
 
+/* SWJ wire-szekvencia: line reset + JTAG->SWD switch + line reset + idle.
+   Az SW-DP-t kiválasztja és újraszinkronizálja a vezetéket. A DPIDR olvasás
+   (az első érvényes tranzakció) a hívóé. Bring-up és re-sync is ezt hívja. */
+static void swd_wire_select(void)
+{
+    line_reset();
+    /* JTAG-to-SWD switch: 0xE79E, LSB-first 16 bit (a vezetéken 0x9E, 0xE7). */
+    ESP_LOGD(TAG, "JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)");
+    swd_phy_dir(true);
+    swd_phy_seq_out(0xE79E, 16);
+    line_reset();
+    /* Néhány idle bit a switch után, az első tranzakció előtt. */
+    ESP_LOGV(TAG, "8 idle bit a switch után");
+    swd_phy_dir(true);
+    swd_phy_seq_out(0, 8);
+}
+
 esp_err_t adiv5_connect(uint32_t *idcode_out)
 {
     s_select_valid = false;
@@ -530,22 +551,8 @@ esp_err_t adiv5_connect(uint32_t *idcode_out)
 
     ESP_LOGD(TAG, "SWD bring-up indul");
 
-    /* 1) Line reset */
-    line_reset();
-
-    /* 2) JTAG-to-SWD switch: 0xE79E, LSB-first 16 bit.
-       A vezetéken így 0x9E, 0xE7 jelenik meg (a seq_out LSB-first küld). */
-    ESP_LOGD(TAG, "JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)");
-    swd_phy_dir(true);
-    swd_phy_seq_out(0xE79E, 16);
-
-    /* 3) Újabb line reset */
-    line_reset();
-
-    /* Néhány idle bit a switch után, az első tranzakció előtt. */
-    ESP_LOGV(TAG, "8 idle bit a switch után");
-    swd_phy_dir(true);
-    swd_phy_seq_out(0, 8);
+    /* 1-3) Wire-szekvencia (line reset + switch + line reset + idle). */
+    swd_wire_select();
 
     /* 4) DPIDR olvasás (DP 0x0) — első érvényes tranzakció. */
     ESP_LOGD(TAG, "DPIDR olvasás (első érvényes tranzakció)");
