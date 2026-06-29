@@ -192,6 +192,14 @@ static uint32_t swd_write_raw(bool ap, uint32_t addr, uint32_t data)
                  ack == ACK_WAIT ? "WAIT" : (ack == ACK_FAULT ? "FAULT" : "???"),
                  (unsigned long)ack, (unsigned long)data);
     }
+
+    /* Trailing idle ciklusok (SWDIO=0) az írás UTÁN — FONTOS, írás-specifikus:
+     * a SW-DP-nek néhány órajel kell, hogy a write-tranzakciót lezárja/feldolgozza.
+     * Ha a következő tranzakció trailing nélkül azonnal jön (pl. back-to-back DRW
+     * írások az FLM-burst-ben), a DP időnként hibás/üres ACK-ot ad (0x0), ami
+     * deszinkronizálja a protokollt. Az olvasásnak nincs ilyen igénye. A dir már
+     * meghajtott (true) mindkét ágon. */
+    swd_phy_seq_out(0, 8);
     return ack;
 }
 
