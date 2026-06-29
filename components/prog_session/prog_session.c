@@ -22,7 +22,7 @@ static const char *TAG = "prog_session";
    adatfázis (FLM-load/program/verify) alatt feltolva. A WiFi-rádió leállítása
    óta a glitch-ráta elhanyagolható, így a magasabb SWCLK biztonságos. */
 #define SWD_FREQ_BRINGUP   300000u    /* ~300 kHz: line reset + switch + connect */
-#define SWD_FREQ_FAST     1000000u    /* 1 MHz: adatfázis (óvatos első lépés) */
+#define SWD_FREQ_FAST     2000000u    /* 2 MHz: adatfázis (1 MHz tiszta volt, tovább) */
 
 /* A per-tranzakció SWD-logok (VERBOSE) a flash idejének ~90%-át viszik az
    UART-on. A flash idejére INFO-ra vesszük a SWD-tag-eket (mérföldkövek

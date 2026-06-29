@@ -412,8 +412,8 @@ static esp_err_t program_cmsis(const flm_algo_t *algo, uint32_t base_addr,
         size_t off = 0;
         while (off < len) {
             size_t chunk = len - off;
-            if (chunk > 64u) chunk = 64u;
-            uint32_t words[16];
+            if (chunk > 256u) chunk = 256u;   /* nagyobb blokk = kevesebb chunk-overhead */
+            uint32_t words[64];
             size_t nwords = (chunk + 3u) / 4u;
             ESP_LOGV(TAG, "verify page 0x%08lx (%u B)",
                      (unsigned long)(base_addr + (uint32_t)off), (unsigned)chunk);
@@ -547,8 +547,8 @@ static esp_err_t program_st(const flm_algo_t *algo, uint32_t base_addr,
         size_t off = 0;
         while (off < len) {
             size_t chunk = len - off;
-            if (chunk > 64u) chunk = 64u;
-            uint32_t words[16];
+            if (chunk > 256u) chunk = 256u;   /* nagyobb blokk = kevesebb chunk-overhead */
+            uint32_t words[64];
             size_t nwords = (chunk + 3u) / 4u;
             ESP_LOGV(TAG, "verify page 0x%08lx (%u B)",
                      (unsigned long)(base_addr + (uint32_t)off), (unsigned)chunk);
