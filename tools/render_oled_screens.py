@@ -50,12 +50,17 @@ COL_BG  = (0x0a, 0x0d, 0x12)   # háttér / kikapcsolt pixel
 COL_ON  = (0x59, 0xE6, 0xF5)   # bekapcsolt pixel
 
 # --------------------------------------------------------------------------
-# UI layout-konstansok (ui.c-ből — VÁLTOZATLAN)
+# UI layout-konstansok (ui.c-ből — NX80-stílus, scale-2 lista, keret-kijelölés)
 # --------------------------------------------------------------------------
-UI_HDR_H    = 11           # fejléc-sáv magassága
-UI_LINE_H   = 10           # egy listasor magassága
-UI_LIST_TOP = UI_HDR_H     # első listasor y-ja
-UI_VISIBLE  = 5            # látható listaelemek
+UI_HDR_H     = 11           # fejléc-sáv magassága (scale 1)
+UI_LIST_SCALE = 2           # listaelemek font-skálája (~14px magas)
+UI_VISIBLE   = 3            # egyszerre látható listaelemek száma
+UI_ROW_H     = 16           # kijelölés-keret magassága (sor-osztás)
+UI_LIST_MAXCH = 10          # max karakter egy listasorban (scale 2)
+
+# A 3 látható listasor szöveg-y koordinátái (ui.c UI_ROW_Y[]).
+# A kijelölés-keret a sor-y - 1-től UI_ROW_H magasan rajzolódik.
+UI_ROW_Y = (14, 31, 48)
 
 
 # ==========================================================================
@@ -180,12 +185,11 @@ class FrameBuffer:
         for i, ch in enumerate(title[:21]):
             self.char(2 + i * 6, 2, ch, 1, False)
 
-    # --- inverz/kijelölt listasor (ui.c ui_draw_list): fill_rect(0,y-1,128,10)
-    #     + sötét szöveg 2,y-nál ---
-    def list_row_selected(self, y, txt):
-        self.fill_rect(0, y - 1, OLED_W, UI_LINE_H, True)
-        for i, ch in enumerate(txt[:21]):
-            self.char(2 + i * 6, y, ch, 1, False)
+    # --- kijelölt listasor KERETE (ui.c ui_draw_list, UI_SEL_FRAME=1):
+    #     display_oled_rect(0, y-1, 128, UI_ROW_H) — a szöveg külön, normál
+    #     (nem inverz) scale 2 rajzolódik a sorhoz. ---
+    def list_row_frame(self, y):
+        self.rect(0, y - 1, OLED_W, UI_ROW_H)
 
 
 # ==========================================================================
@@ -259,158 +263,184 @@ def make_screens(glyphs):
     def add(name, fn):
         screens.append((name, fn))
 
-    # 01 idle
+    # ui_trunc(): a listasorok/scale-2 szövegek max UI_LIST_MAXCH karakterre
+    # csonkolva (ui.c). A renderelt szöveg ennyi karakterig megy.
+    def trunc(s, maxch=UI_LIST_MAXCH):
+        return s[:maxch]
+
+    # ------------------------------------------------------------------
+    # Általános NX80-stílusú lista-rajzoló (ui.c ui_draw_list):
+    #   - fejléc (inverz sáv, scale 1) MARAD,
+    #   - max UI_VISIBLE (3) elem scale 2-vel, x=2, sor-y UI_ROW_Y-ból,
+    #   - 10 karakterre csonkolva,
+    #   - a kiválasztott sor KERETTEL kiemelve (rect(0, y-1, 128, UI_ROW_H)),
+    #   - a szöveg minden sornál sima (nem inverz) scale 2.
+    # 'scroll' = 0 minden mintánál (a mintalisták <= 3 elemet mutatnak).
+    # ------------------------------------------------------------------
+    def draw_list(fb, title, items, sel, empty_msg=""):
+        fb.header(title)
+        if len(items) <= 0:
+            # Üres lista: nagy (scale 2) középre igazított üzenet (ui.c y=28).
+            fb.text_center(28, empty_msg, UI_LIST_SCALE)
+            return
+        scroll = 0
+        for row in range(UI_VISIBLE):
+            idx = scroll + row
+            if idx >= len(items):
+                break
+            y = UI_ROW_Y[row]
+            txt = trunc(items[idx])
+            fb.text(2, y, txt, UI_LIST_SCALE)
+            if idx == sel:
+                fb.list_row_frame(y)   # keret-kijelölés
+
+    # 01 idle — cím scale 2 középen, állapotsorok scale 2 (y=18,36,52).
     def s_idle(fb):
         fb.text_center(0, "SWD PROG", 2)
-        fb.text(2, 26, "WiFi:   --", 1)
-        fb.text(2, 38, "Target: --", 1)
-        fb.text(2, 50, "Serial: --", 1)
+        fb.text(2, 18, "WiFi:   --", 2)
+        fb.text(2, 36, "Target: --", 2)
+        fb.text(2, 52, "Serial: --", 2)
     add("idle", s_idle)
 
-    # Általános lista-rajzoló segéd (ui_draw_list logikája).
-    def draw_list(fb, title, items, sel):
-        fb.header(title)
-        # scroll = 0 mindegyik mintánál (max 5 elem)
-        for row in range(min(UI_VISIBLE, len(items))):
-            y = UI_LIST_TOP + row * UI_LINE_H
-            txt = items[row]
-            if row == sel:
-                fb.list_row_selected(y, txt)
-            else:
-                fb.text(2, y, txt, 1)
+    # Rövidített főmenü (ui.c MENU_ITEMS) — a feliratok <= 10 char, scale 2.
+    MENU = ["Program fw", "Cel info", "AVR ISP",
+            "Cel konfig", "Elo adat", "Beallitas"]
 
-    MENU = ["Program firmware", "Cel info (SWD)", "AVR ISP (ATtiny)",
-            "Cel konfig", "Elo adat"]
-
-    # 02 menu_program (SEL = 0)
+    # 02 menu_program — kiválasztott: "Program fw" (index 0, keret).
     add("menu_program", lambda fb: draw_list(fb, "Fomenu", MENU, 0))
-    # 03 menu_avr (SEL = 2)
+    # 03 menu_avr — kiválasztott: "AVR ISP" (index 2, keret).
     add("menu_avr", lambda fb: draw_list(fb, "Fomenu", MENU, 2))
 
-    # 04 fwlist (SEL = 0)
+    # 04 fwlist (SEL = 0) — max 3 elem, scale 2, keret a 0. sornál.
     add("fwlist", lambda fb: draw_list(fb, "Program firmware",
                                        ["app.bin", "blink.bin", "sensor.bin"], 0))
 
-    # 05 fwlist_empty
-    def s_fwlist_empty(fb):
-        fb.header("Program firmware")
-        fb.text_center(UI_LIST_TOP + UI_LINE_H, "(nincs fw fajl)", 1)
-    add("fwlist_empty", s_fwlist_empty)
+    # 05 fwlist_empty — nagy (scale 2) üzenet középen (ui.c empty_msg, y=28).
+    add("fwlist_empty",
+        lambda fb: draw_list(fb, "Program firmware", [], 0, "(nincs fw fajl)"))
 
-    # 06 fwsel
+    # 06 fwsel (ui.c draw_fwsel): "Selected:" scale 2 (y=16), fájlnév scale 1
+    #    (y=34), "OK=flash" scale 2 (y=48).
     def s_fwsel(fb):
-        fb.header("Program firmware")
-        fb.text(2, 18, "Selected:", 1)
-        fb.text(2, 30, "app.bin", 1)
-        fb.text(2, 46, "OK=flash", 1)
+        fb.header("Program fw")
+        fb.text(2, 16, "Selected:", 2)
+        fb.text(2, 34, "app.bin", 1)
+        fb.text(2, 48, "OK=flash", 2)
     add("fwsel", s_fwsel)
 
-    # 07 swd_prog (57%)
+    # 07 swd_prog (57%) — ui_flash_cb: fázis fejléc, célnév scale 2 (y=16,
+    #    csonkolt), "57%" scale 2 (y=34), progress-bar rect(2,52,124,10).
     def s_swd_prog(fb):
         fb.header("Iras")
-        fb.text(2, 18, "STM32F411", 1)
-        fb.text(2, 30, "57%", 1)
-        # progress-bar: rect(2,44,124,12) + fill belső a 57% arányában
-        bx, by, bw, bh = 2, 44, OLED_W - 4, 12
+        fb.text(2, 16, trunc("STM32F411"), UI_LIST_SCALE)
+        fb.text(2, 34, "57%", UI_LIST_SCALE)
+        bx, by, bw, bh = 2, 52, OLED_W - 4, 10
         fb.rect(bx, by, bw, bh)
-        fill = ((bw - 2) * 57) // 100   # = 69
+        fill = ((bw - 2) * 57) // 100
         if fill > 0:
             fb.fill_rect(bx + 1, by + 1, fill, bh - 2, True)
     add("swd_prog", s_swd_prog)
 
-    # 08 swd_done
+    # 08 swd_done (ui_start_flash OK ág): "Flash OK" scale 2 (y=26),
+    #    "Nyomj gombot" scale 1 (y=52).
     def s_swd_done(fb):
         fb.header("KESZ")
-        fb.text_center(28, "Flash OK", 1)
-        fb.text_center(50, "Nyomj gombot", 1)
+        fb.text_center(26, "Flash OK", UI_LIST_SCALE)
+        fb.text_center(52, "Nyomj gombot", 1)
     add("swd_done", s_swd_done)
 
-    # 09 swd_err
+    # 09 swd_err (ui_start_flash hiba ág): esp_err név scale 1 (y=28),
+    #    "Nyomj gombot" scale 1 (y=52).
     def s_swd_err(fb):
         fb.header("HIBA")
         fb.text_center(28, "ESP_ERR_TIMEOUT", 1)
-        fb.text_center(50, "Nyomj gombot", 1)
+        fb.text_center(52, "Nyomj gombot", 1)
     add("swd_err", s_swd_err)
 
-    # 10 celinfo_detect
+    # 10 celinfo_detect (ui_start_detect): "Detektalas" scale 2 (y=28).
     def s_celinfo_detect(fb):
         fb.header("Cel info")
-        fb.text_center(28, "Detektalas...", 1)
+        fb.text_center(28, "Detektalas", UI_LIST_SCALE)
     add("celinfo_detect", s_celinfo_detect)
 
-    # 11 celinfo_ok
+    # 11 celinfo_ok (ui_start_detect siker): célnév scale 2 (y=16, csonkolt),
+    #    "DEV:0x431" scale 2 (y=34).
     def s_celinfo_ok(fb):
         fb.header("Cel info")
-        fb.text(2, 18, "STM32F411", 1)
-        fb.text(2, 30, "DEV: 0x431", 1)
-        fb.text(2, 42, "RDP0  512KB", 1)
-        fb.text_center(54, "Nyomj gombot", 1)
+        fb.text(2, 16, trunc("STM32F411"), UI_LIST_SCALE)
+        fb.text(2, 34, "DEV:0x431", UI_LIST_SCALE)
     add("celinfo_ok", s_celinfo_ok)
 
-    # 12 celinfo_none
+    # 12 celinfo_none (ui_start_detect hiba): "Nincs cel" scale 2 (y=20),
+    #    üzenet scale 1 (y=42), "Nyomj gombot" scale 1 (y=54).
     def s_celinfo_none(fb):
         fb.header("Cel info")
-        fb.text_center(24, "Nincs cel", 1)
-        fb.text_center(40, "nincs cel / connect", 1)
+        fb.text_center(20, "Nincs cel", UI_LIST_SCALE)
+        fb.text_center(42, "no target", 1)
         fb.text_center(54, "Nyomj gombot", 1)
     add("celinfo_none", s_celinfo_none)
 
-    # 13 celinfo_busy
+    # 13 celinfo_busy (ui_start_detect foglalt): "Foglalt" scale 2 (y=28).
     def s_celinfo_busy(fb):
         fb.header("Cel info")
-        fb.text_center(28, "Foglalt", 1)
+        fb.text_center(28, "Foglalt", UI_LIST_SCALE)
     add("celinfo_busy", s_celinfo_busy)
 
-    # 14 placeholder (Elo adat)
+    # 14 placeholder (draw_placeholder, pl. "Elo adat"): "hamarosan" scale 2 (y=28).
     def s_placeholder(fb):
         fb.header("Elo adat")
-        fb.text_center(28, "(hamarosan)", 1)
+        fb.text_center(28, "hamarosan", UI_LIST_SCALE)
     add("placeholder", s_placeholder)
 
-    # 15 avr_detect
+    # 15 avr_detect (ui_avr_start_detect): "Detektalas" scale 2 (y=28).
     def s_avr_detect(fb):
         fb.header("AVR ISP")
-        fb.text_center(28, "Detektalas...", 1)
+        fb.text_center(28, "Detektalas", UI_LIST_SCALE)
     add("avr_detect", s_avr_detect)
 
-    # 16 avr_ok
+    # 16 avr_ok (ui_avr_start_detect siker): eszköznév scale 2 (y=14, csonkolt),
+    #    "SIG:1E 90 07" scale 1 (y=34), "Flash:1024B" scale 1 (y=44),
+    #    "OK=tovabb" scale 1 (y=54).
     def s_avr_ok(fb):
         fb.header("AVR ISP")
-        fb.text(2, 16, "SIG: 1E 90 07", 1)
-        fb.text(2, 28, "ATtiny13/13A", 1)
-        fb.text(2, 40, "Flash: 1024 B", 1)
+        fb.text(2, 14, trunc("ATtiny13"), UI_LIST_SCALE)
+        fb.text(2, 34, "SIG:1E 90 07", 1)
+        fb.text(2, 44, "Flash:1024B", 1)
         fb.text_center(54, "OK=tovabb", 1)
     add("avr_ok", s_avr_ok)
 
-    # 17 avrlist (SEL = 0)
-    add("avrlist", lambda fb: draw_list(fb, "AVR ISP",
+    # 17 avrlist (SEL = 0) — ui_render SCR_AVRLIST cím "AVR ISP fajl".
+    add("avrlist", lambda fb: draw_list(fb, "AVR ISP fajl",
                                         ["blink.hex", "fade.bin", "main.hex"], 0))
 
-    # 18 avrsel
+    # 18 avrsel (ui.c draw_avrsel): "Selected:" scale 2 (y=16), fájlnév scale 1
+    #    (y=34), "OK=flash" scale 2 (y=48).
     def s_avrsel(fb):
         fb.header("AVR ISP")
-        fb.text(2, 18, "Selected:", 1)
-        fb.text(2, 30, "blink.hex", 1)
-        fb.text(2, 46, "OK=flash", 1)
+        fb.text(2, 16, "Selected:", 2)
+        fb.text(2, 34, "blink.hex", 1)
+        fb.text(2, 48, "OK=flash", 2)
     add("avrsel", s_avrsel)
 
-    # 19 avr_prog (57%)
+    # 19 avr_prog (57%) — ui_avr_flash_cb: fájlnév scale 2 (y=16, csonkolt),
+    #    "57%" scale 2 (y=34), progress-bar rect(2,52,124,10).
     def s_avr_prog(fb):
         fb.header("Iras")
-        fb.text(2, 18, "blink.hex", 1)
-        fb.text(2, 30, "57%", 1)
-        bx, by, bw, bh = 2, 44, OLED_W - 4, 12
+        fb.text(2, 16, trunc("blink.hex"), UI_LIST_SCALE)
+        fb.text(2, 34, "57%", UI_LIST_SCALE)
+        bx, by, bw, bh = 2, 52, OLED_W - 4, 10
         fb.rect(bx, by, bw, bh)
         fill = ((bw - 2) * 57) // 100
         if fill > 0:
             fb.fill_rect(bx + 1, by + 1, fill, bh - 2, True)
     add("avr_prog", s_avr_prog)
 
-    # 20 avr_done
+    # 20 avr_done (ui_avr_start_flash OK): "Flash OK" scale 2 (y=26),
+    #    "Nyomj gombot" scale 1 (y=52).
     def s_avr_done(fb):
         fb.header("KESZ")
-        fb.text_center(28, "Flash OK", 1)
-        fb.text_center(50, "Nyomj gombot", 1)
+        fb.text_center(26, "Flash OK", UI_LIST_SCALE)
+        fb.text_center(52, "Nyomj gombot", 1)
     add("avr_done", s_avr_done)
 
     return screens
@@ -496,7 +526,7 @@ def build_index(glyphs, rendered):
 # ==========================================================================
 def main():
     glyphs = parse_font_5x7(FONT_C)
-    print("Font parse OK: %d glyph (0x20..0x5F)" % len(glyphs))
+    print("Font parse OK: %d glyph (0x20..)" % len(glyphs))
 
     os.makedirs(OUT_DIR, exist_ok=True)
 
