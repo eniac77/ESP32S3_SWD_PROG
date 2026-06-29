@@ -1,6 +1,8 @@
 #pragma once
 /* Cél-adatbázis: DBGMCU IDCODE / DEV_ID -> család + flash-size reg + FLM.
- * STM32 F0/F1/F3/F4/F7/L0/L1/L4/G0. (terv 10. szekció)
+ * STM32 F0/F1/F2/F3/F4/F7/H7/H5/G0/G4/L0/L1/L4/L5/U0/U5/WB/WL/WBA/C0.
+ * (terv 10. szekció; a teljes 80-DEV_ID paletta a STM32CubeProgrammer
+ * FlashLoader készletéhez igazítva.)
  */
 #include <stdint.h>
 #include "esp_err.h"
@@ -11,8 +13,13 @@ extern "C" {
 #endif
 
 typedef enum {
-    STM32_FAM_F0, STM32_FAM_F1, STM32_FAM_F3, STM32_FAM_F4, STM32_FAM_F7,
-    STM32_FAM_L0, STM32_FAM_L1, STM32_FAM_L4, STM32_FAM_G0,
+    STM32_FAM_F0, STM32_FAM_F1, STM32_FAM_F2, STM32_FAM_F3, STM32_FAM_F4,
+    STM32_FAM_F7, STM32_FAM_H7, STM32_FAM_H5,
+    STM32_FAM_G0, STM32_FAM_G4,
+    STM32_FAM_L0, STM32_FAM_L1, STM32_FAM_L4, STM32_FAM_L5,
+    STM32_FAM_U0, STM32_FAM_U5,
+    STM32_FAM_WB, STM32_FAM_WL, STM32_FAM_WBA,
+    STM32_FAM_C0,
     STM32_FAM_UNKNOWN
 } stm32_family_t;
 

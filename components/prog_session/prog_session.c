@@ -119,6 +119,18 @@ static const target_info_t *detect_target(prog_status_t *st)
 
         const target_info_t *info = target_db_lookup(dev_id);
         if (info) {
+            /* Robusztusság: csak akkor fogadjuk el, ha a beolvasott cím a
+               család valódi DBGMCU IDCODE-címe. Több jelölt-cím mellett egy
+               másik memóriarégióból véletlenül "értelmesnek" tűnő 12 biten
+               egyező érték így nem téveszt meg. */
+            if (info->dbgmcu_idcode_addr != 0 &&
+                info->dbgmcu_idcode_addr != addrs[i]) {
+                ESP_LOGD(TAG, "DEV_ID=0x%03X (%s) egyezne, de rossz IDCODE-cím "
+                         "(0x%08lx != elvárt 0x%08lx) -> elvetve",
+                         (unsigned)dev_id, info->name, (unsigned long)addrs[i],
+                         (unsigned long)info->dbgmcu_idcode_addr);
+                continue;
+            }
             st->dev_id = dev_id;
             strncpy(st->target_name, info->name, sizeof(st->target_name) - 1);
             st->target_name[sizeof(st->target_name) - 1] = '\0';
