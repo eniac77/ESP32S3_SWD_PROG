@@ -8,6 +8,10 @@
 #include "storage_usb.h"
 
 #include <string.h>
+#include "sdkconfig.h"
+#include "esp_log.h"
+
+static const char *TAG = "storage_src";
 
 /* Igaz, ha a path a /usb mount alá esik. */
 static bool is_usb_path(const char *p)
@@ -19,6 +23,12 @@ static bool is_usb_path(const char *p)
 
 esp_err_t storage_src_init(void)
 {
+#if CONFIG_USB_MSC_HOST_ENABLE
+    ESP_LOGI(TAG, "USB MSC forras BEKAPCSOLVA — host indul (mount: %s)", STORAGE_USB_BASE);
+#else
+    ESP_LOGI(TAG, "USB MSC forras KIKAPCSOLVA (CONFIG_USB_MSC_HOST_ENABLE=n) "
+                  "— csak belso LittleFS (/lfs)");
+#endif
     return storage_usb_init();   /* kikapcsolva no-op */
 }
 
