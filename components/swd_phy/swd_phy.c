@@ -115,6 +115,16 @@ esp_err_t swd_phy_init(void)
         return err;
     }
 
+    /* --- KRITIKUS a turnaroundhoz: a SWDIO output-enable forrása ---
+     * A dedic_gpio a kimeneti jelet a GPIO-mátrixon át vezeti, és a pad
+     * output-enable-jét ALAPÉRTELMEZÉSBEN a dedic periféria adja (mindig
+     * hajt). Emiatt a gpio_ll_output_disable() a swd_phy_dir(false)-ben nem
+     * engedi el a vonalat -> a cél nem tud lehúzni -> csupa-1 ACK (0x7).
+     * Megoldás: oen_sel=1 a SWDIO padra, így az OEN a GPIO_ENABLE regiszterből
+     * jön (amit a gpio_ll_output_enable/disable állít), míg az ADAT továbbra is
+     * a dedic kimenetről. A SWCLK-t NEM bántjuk (az végig hajtott). */
+    GPIO.func_out_sel_cfg[PIN_SWDIO].oen_sel = 1;
+
     /* Biztonságos alap: lassú baud, SWDIO meghajtva magasra, SWCLK alacsony. */
     swd_phy_set_freq_hz(300000);   /* ~300 kHz bring-up baud */
     swd_phy_dir(true);
