@@ -160,6 +160,19 @@ void swd_phy_dir(bool drive)
  * Hívás előtt SWDIO legyen meghajtott irányban: swd_phy_dir(true). */
 void swd_phy_seq_out(uint32_t bits, int n)
 {
+    /* GYORS ÚT (0-késleltetés): a SWDIO-t és a SWCLK-t EGY dedic-írásba vonjuk
+     * össze (a kimeneti bundle-ben SWCLK=bit0, SWDIO=bit1), így bitenként 2 írás
+     * a korábbi 3 helyett, és nincs delay_half függvényhívás/volatile-olvasás.
+     * Adat-setup + clk_low egy írásban, majd clk_high (felfutó él) a másikban. */
+    if (s_half_cycle_loops == 0) {
+        for (int i = 0; i < n; i++) {
+            uint32_t sd = ((bits >> i) & 1u) ? SWDIO_MASK : 0u;
+            dedic_gpio_bundle_write(s_out, SWCLK_MASK | SWDIO_MASK, sd);               /* SWDIO + clk low */
+            dedic_gpio_bundle_write(s_out, SWCLK_MASK | SWDIO_MASK, sd | SWCLK_MASK);   /* clk high (él) */
+        }
+        return;
+    }
+    /* LASSÚ ÚT (bring-up, nem-0 késleltetés): külön írások + delay. */
     for (int i = 0; i < n; i++) {
         uint32_t v = ((bits >> i) & 1u) ? SWDIO_MASK : 0;
         dedic_gpio_bundle_write(s_out, SWDIO_MASK, v);
@@ -177,6 +190,20 @@ void swd_phy_seq_out(uint32_t bits, int n)
 uint32_t swd_phy_seq_in(int n)
 {
     uint32_t out = 0;
+    /* GYORS ÚT (0-késleltetés): clk_low -> mintavétel a low fázisban -> clk_high,
+     * delay_half overhead nélkül. (A mintavételi pozíció ugyanaz, mint lent.) */
+    if (s_half_cycle_loops == 0) {
+        for (int i = 0; i < n; i++) {
+            dedic_gpio_bundle_write(s_out, SWCLK_MASK, 0);            /* clk low */
+            uint32_t r = dedic_gpio_bundle_read_in(s_in);            /* minta a low fázisban */
+            if (r & IN_SWDIO_MASK) {
+                out |= (1u << i);
+            }
+            dedic_gpio_bundle_write(s_out, SWCLK_MASK, SWCLK_MASK);   /* clk high (él) */
+        }
+        return out;
+    }
+    /* LASSÚ ÚT (bring-up): delay_half-fal. */
     for (int i = 0; i < n; i++) {
         clk_low();
         delay_half();
