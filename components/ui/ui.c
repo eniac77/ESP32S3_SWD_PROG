@@ -22,6 +22,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_timer.h"          /* progress-rajz throttle (OLED-flush ~25 ms) */
 
 #include "display_oled.h"
 #include "input_enc.h"
@@ -271,6 +272,21 @@ static void ui_flash_cb(const prog_status_t *st, void *ctx)
 {
     (void)ctx;
     if (!st) return;
+
+    /* THROTTLE: a teljes OLED-flush ~25 ms (1 KB I2C @ 400 kHz). A progress-cb
+       a program/verify alatt sok százszor hívódik (chunk/oldal), ezért MINDEN
+       hívásra rajzolni dominálná a flash-időt (verify ~115 chunk × 25 ms ≈ 2,9 s).
+       Csak fázisváltáskor, terminál állapotban (DONE/FAILED), vagy >=120 ms-enként
+       rajzolunk -> ~7 fps progress, a flash-idő töredékéért. */
+    bool terminal = (st->phase == PROG_DONE || st->phase == PROG_FAILED);
+    static int64_t s_last_us = 0;
+    static int s_last_phase = -1;
+    int64_t now = esp_timer_get_time();
+    if (!terminal && (int)st->phase == s_last_phase && (now - s_last_us) < 120000) {
+        return;   /* túl gyakori -> kihagyjuk a rajzot */
+    }
+    s_last_us = now;
+    s_last_phase = (int)st->phase;
 
     /* Százalék 0..100 közé szorítva (defenzív a bar-rajzhoz). */
     int pct = st->percent;
