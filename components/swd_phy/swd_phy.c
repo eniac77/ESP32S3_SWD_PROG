@@ -249,24 +249,41 @@ bool swd_phy_selftest_io(void)
     esp_rom_delay_us(5);
     int hi = read_swdio();
 
+    /* 4) TRI-STATE próba: dir(false) UTÁN a padon csak belső pull-down.
+     *    Ha a kimenet tényleg el van engedve, a pull-down lehúz -> 0.
+     *    Ha az ESP MÉG MINDIG hajtja magasra (a dir(false) nem tri-state-el),
+     *    akkor 1 marad -> ez a csupa-1 ACK valódi oka (a cél nem tud lehúzni). */
+    dedic_gpio_bundle_write(s_out, SWDIO_MASK, SWDIO_MASK);  /* belső latch magas */
+    swd_phy_dir(false);                                      /* "elengedés" */
+    gpio_set_pull_mode(PIN_SWDIO, GPIO_PULLDOWN_ONLY);
+    esp_rom_delay_us(20);
+    int released_pd = read_swdio();
+    gpio_set_pull_mode(PIN_SWDIO, GPIO_PULLUP_ONLY);         /* eredeti felhúzó vissza */
+
     /* Néhány látható SWCLK pulzus analizátorhoz (SWDIO közben magas). */
+    swd_phy_dir(true);
+    dedic_gpio_bundle_write(s_out, SWDIO_MASK, SWDIO_MASK);
     for (int i = 0; i < 8; i++) { clk_low(); delay_half(); clk_high(); delay_half(); }
 
-    ESP_LOGI(PHY_TAG, "[IO-TEST] released=%d (var:1)  drive_lo=%d (var:0)  drive_hi=%d (var:1)",
-             rel, lo, hi);
+    ESP_LOGI(PHY_TAG, "[IO-TEST] released=%d (var:1)  drive_lo=%d (var:0)  drive_hi=%d (var:1)  tristate_pd=%d (var:0)",
+             rel, lo, hi, released_pd);
 
-    bool ok = (rel == 1) && (lo == 0) && (hi == 1);
+    bool ok = (rel == 1) && (lo == 0) && (hi == 1) && (released_pd == 0);
     if (!ok) {
-        if (lo == 1) {
+        if (released_pd == 1) {
+            ESP_LOGW(PHY_TAG, "[IO-TEST] HIBA: dir(false) utan a pad pull-down ellenere 1 -> "
+                              "a SWDIO NEM tri-state, az ESP tovabbra is hajtja magasra. "
+                              "A cel nem tud lehuzni -> ez a csupa-1 ACK valodi (SZOFTVERES) oka!");
+        } else if (lo == 1) {
             ESP_LOGW(PHY_TAG, "[IO-TEST] HIBA: meghajtott 0-t 1-nek olvas -> a bemeneti "
-                              "(dedic input) ut NEM latja a SWDIO pad valos szintjet. "
-                              "Ez a csupa-1 ACK szoftveres oka lehet (nem a bekotes).");
+                              "(dedic input) ut NEM latja a SWDIO pad valos szintjet.");
         } else {
-            ESP_LOGW(PHY_TAG, "[IO-TEST] HIBA: varatlan olvasat (rel=%d lo=%d hi=%d).", rel, lo, hi);
+            ESP_LOGW(PHY_TAG, "[IO-TEST] HIBA: varatlan olvasat (rel=%d lo=%d hi=%d pd=%d).",
+                     rel, lo, hi, released_pd);
         }
     } else {
-        ESP_LOGI(PHY_TAG, "[IO-TEST] OK: a PHY read-ut helyes -> a csupa-1 ACK valodi "
-                          "cel-hiany/bekotes problema (nem szoftver).");
+        ESP_LOGI(PHY_TAG, "[IO-TEST] OK: read-ut + tri-state is helyes -> a csupa-1 ACK "
+                          "valodi cel-hiany/bekotes problema (nem szoftver).");
     }
 
     /* Biztonságos alap visszaállítása. */
