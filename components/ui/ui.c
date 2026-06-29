@@ -34,12 +34,21 @@
 static const char *TAG = "ui";
 
 /* ---------------------------------------------------------------------- */
-/* Layout-konstansok (5x7 font scale 1: 6px széles cella, 8px sormagasság) */
+/* Layout-konstansok (5x7 font: scale*6 px/karakter, scale*8 px magas)     */
+/* NX80-stílus: nagy (scale 2) lista, keretes kijelölés.                   */
 /* ---------------------------------------------------------------------- */
-#define UI_LINE_H      10          /* egy listasor magassága px-ben       */
-#define UI_HDR_H       11          /* fejléc-sáv magassága px-ben         */
-#define UI_LIST_TOP    UI_HDR_H    /* az első listasor y-ja               */
-#define UI_VISIBLE     5           /* egyszerre látható listaelemek száma */
+#define UI_HDR_H       11          /* fejléc-sáv magassága px-ben (scale 1)*/
+
+/* --- NX80-stílusú lista-megjelenés (hangolható) --- */
+#define UI_LIST_SCALE  2           /* listaelemek font-skálája (~14px magas)*/
+#define UI_VISIBLE     3           /* egyszerre látható listaelemek száma  */
+#define UI_ROW_H       16          /* sor-osztás px-ben (NX80: 16px)       */
+#define UI_SEL_FRAME   1           /* kijelölés-stílus: 1 = keret, 0 = inverz */
+#define UI_LIST_MAXCH  10          /* max karakter egy listasorban (scale 2)*/
+
+/* A 3 látható listasor szöveg-y koordinátái (NX80 screen_menu mintára).
+   A kijelölés-keret a sor-y - 1-től UI_ROW_H magasan rajzolódik. */
+static const uint8_t UI_ROW_Y[UI_VISIBLE] = { 14, 31, 48 };
 
 /* ---------------------------------------------------------------------- */
 /* Fájllista-puffer (statikus; max 32 név × 24 char) — terv 15.x          */
@@ -69,14 +78,17 @@ static int         s_scroll   = 0;   /* scroll-offset (első látható elem) */
 static char        s_sel_name[FW_NAME_LEN]; /* kiválasztott fw neve       */
 static const char *s_ph_title = "";  /* aktuális placeholder címe         */
 
-/* Főmenü elemei (terv 15.2). */
+/* Főmenü elemei (terv 15.2). A feliratok rövidítve, hogy scale 2-nél
+   elférjenek (≤10 karakter); a SORREND/INDEXEK változatlanok, mert a
+   ui_handle index-alapú elágazása ezekre épül (0=Program fw, 1=Cel info,
+   2=AVR ISP, 3..5=placeholder). */
 static const char *const MENU_ITEMS[] = {
-    "Program firmware",
-    "Cel info (SWD)",
-    "AVR ISP (ATtiny)",
-    "Cel konfig",
-    "Elo adat",
-    "Beallitasok",
+    "Program fw",   /* 0 — "Program firmware" rövidítve */
+    "Cel info",     /* 1 — "Cel info (SWD)"             */
+    "AVR ISP",      /* 2 — "AVR ISP (ATtiny)"           */
+    "Cel konfig",   /* 3 (10 char, fér)                 */
+    "Elo adat",     /* 4                                */
+    "Beallitas",    /* 5 — "Beallitasok" rövidítve      */
 };
 #define MENU_COUNT ((int)(sizeof(MENU_ITEMS) / sizeof(MENU_ITEMS[0])))
 
@@ -94,10 +106,21 @@ static void ui_draw_header(const char *title)
     }
 }
 
-/* Általános görgetett listarajzoló:
- *   - fejléc (inverz sáv),
- *   - legfeljebb UI_VISIBLE elem a scroll-offsettől,
- *   - a kiválasztott elem keretes/inverz kiemeléssel.
+/* Szöveg-csonkolás egy fix karakterszámra (helyben, kis lokális pufferbe).
+   A scale 2-es listához (max ~10 char/128px) kell, hogy ne lógjon ki a sor. */
+static const char *ui_trunc(const char *src, char *buf, size_t bufsz, int maxch)
+{
+    if (maxch > (int)bufsz - 1) maxch = (int)bufsz - 1;
+    int i = 0;
+    for (; src[i] && i < maxch; i++) buf[i] = src[i];
+    buf[i] = '\0';
+    return buf;
+}
+
+/* Általános görgetett listarajzoló — NX80 screen_menu stílus:
+ *   - fejléc (inverz sáv, scale 1) MARAD a tetején (kontextus),
+ *   - legfeljebb UI_VISIBLE (3) elem scale 2-vel, x=2, sor-y UI_ROW_Y-ból,
+ *   - a kiválasztott sor KERETTEL kiemelve (display_oled_rect, nem inverz).
  * A 'get_item' callback adja vissza az i. elem szövegét. */
 typedef const char *(*ui_item_getter)(int idx);
 
@@ -108,7 +131,8 @@ static void ui_draw_list(const char *title, int count, int sel, int scroll,
     ui_draw_header(title);
 
     if (count <= 0) {
-        display_oled_text_center(UI_LIST_TOP + UI_LINE_H, empty_msg, 1);
+        /* Üres lista: nagy (scale 2) középre igazított üzenet. */
+        display_oled_text_center(28, empty_msg, UI_LIST_SCALE);
         display_oled_flush();
         return;
     }
@@ -117,17 +141,24 @@ static void ui_draw_list(const char *title, int count, int sel, int scroll,
         int idx = scroll + row;
         if (idx >= count) break;
 
-        int y = UI_LIST_TOP + row * UI_LINE_H;
-        const char *txt = get_item(idx);
+        uint8_t y = UI_ROW_Y[row];
+        char tbuf[UI_LIST_MAXCH + 1];
+        const char *txt = ui_trunc(get_item(idx), tbuf, sizeof(tbuf), UI_LIST_MAXCH);
+
+        /* A szöveg minden sornál sima (nem inverz) scale 2. */
+        display_oled_text(2, y, txt, UI_LIST_SCALE);
 
         if (idx == sel) {
-            /* Kiemelés: kitöltött sáv + sötét szöveg (inverz). */
-            display_oled_fill_rect(0, y - 1, OLED_W, UI_LINE_H, true);
-            for (int i = 0; txt[i] && i < 21; i++) {
-                display_oled_char(2 + i * 6, y, txt[i], 1, false);
-            }
-        } else {
-            display_oled_text(2, y, txt, 1);
+#if UI_SEL_FRAME
+            /* Kijelölés: 1px keret a sor körül (NX80 screen_menu). */
+            display_oled_rect(0, (uint8_t)(y - 1), OLED_W, UI_ROW_H);
+#else
+            /* (Opcionális) inverz kijelölés-stílus, ha UI_SEL_FRAME=0. */
+            display_oled_fill_rect(0, (uint8_t)(y - 1), OLED_W, UI_ROW_H, true);
+            for (int i = 0; txt[i]; i++)
+                display_oled_char(2 + i * (UI_LIST_SCALE * 6), y, txt[i],
+                                  UI_LIST_SCALE, false);
+#endif
         }
     }
 
@@ -170,34 +201,36 @@ static void fw_list_load(void)
 /* Képernyő-rajzolók                                                      */
 /* ---------------------------------------------------------------------- */
 
-/* 1. Idle/status: cím + állapotsorok (egyelőre placeholder értékek). */
+/* 1. Idle/status: cím + állapotsorok. Cím scale 2, az állapotsorok (≤10 char)
+   szintén scale 2, nagyobb sor-osztással (y=18,36,52). */
 static void draw_idle(void)
 {
     display_oled_clear();
     display_oled_text_center(0, "SWD PROG", 2);
-    display_oled_text(2, 26, "WiFi:   --", 1);
-    display_oled_text(2, 38, "Target: --", 1);
-    display_oled_text(2, 50, "Serial: --", 1);
+    display_oled_text(2, 18, "WiFi:   --", 2);
+    display_oled_text(2, 36, "Target: --", 2);
+    display_oled_text(2, 52, "Serial: --", 2);
     display_oled_flush();
 }
 
-/* 4. Placeholder almenük. */
+/* 4. Placeholder almenük. Nagy (scale 2) felirat középen. */
 static void draw_placeholder(void)
 {
     display_oled_clear();
     ui_draw_header(s_ph_title);
-    display_oled_text_center(28, "(hamarosan)", 1);
+    display_oled_text_center(28, "hamarosan", UI_LIST_SCALE);
     display_oled_flush();
 }
 
-/* 3b. Kiválasztott fw megerősítő képernyő. */
+/* 3b. Kiválasztott fw megerősítő képernyő. "Selected:"/"OK=flash" scale 2,
+   a (hosszú lehet) fájlnév scale 1, hogy elférjen. */
 static void draw_fwsel(void)
 {
     display_oled_clear();
-    ui_draw_header("Program firmware");
-    display_oled_text(2, 18, "Selected:", 1);
-    display_oled_text(2, 30, s_sel_name, 1);
-    display_oled_text(2, 46, "OK=flash", 1);   /* BTN_SHORT -> flash indul */
+    ui_draw_header("Program fw");
+    display_oled_text(2, 16, "Selected:", 2);
+    display_oled_text(2, 34, s_sel_name, 1);
+    display_oled_text(2, 48, "OK=flash", 2);   /* BTN_SHORT -> flash indul */
     display_oled_flush();
 }
 
@@ -206,9 +239,9 @@ static void draw_avrsel(void)
 {
     display_oled_clear();
     ui_draw_header("AVR ISP");
-    display_oled_text(2, 18, "Selected:", 1);
-    display_oled_text(2, 30, s_sel_name, 1);
-    display_oled_text(2, 46, "OK=flash", 1);   /* BTN_SHORT -> AVR flash indul */
+    display_oled_text(2, 16, "Selected:", 2);
+    display_oled_text(2, 34, s_sel_name, 1);
+    display_oled_text(2, 48, "OK=flash", 2);   /* BTN_SHORT -> AVR flash indul */
     display_oled_flush();
 }
 
@@ -247,15 +280,18 @@ static void ui_flash_cb(const prog_status_t *st, void *ctx)
     display_oled_clear();
     ui_draw_header(phase_label(st->phase));
 
-    /* Cél neve (vagy "?"), illetve a százalék szám szövegként. */
-    display_oled_text(2, 18, st->target_name[0] ? st->target_name : "?", 1);
+    /* Cél neve csonkolva (scale 2, max 10 char), illetve a százalék scale 2. */
+    char nbuf[UI_LIST_MAXCH + 1];
+    const char *nm = ui_trunc(st->target_name[0] ? st->target_name : "?",
+                              nbuf, sizeof(nbuf), UI_LIST_MAXCH);
+    display_oled_text(2, 16, nm, UI_LIST_SCALE);
 
     char pbuf[8];
     snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
-    display_oled_text(2, 30, pbuf, 1);
+    display_oled_text(2, 34, pbuf, UI_LIST_SCALE);
 
     /* Progress-bar: 1px keret + belső kitöltés a százalék arányában. */
-    const uint8_t bx = 2, by = 44, bw = OLED_W - 4, bh = 12;
+    const uint8_t bx = 2, by = 52, bw = OLED_W - 4, bh = 10;
     display_oled_rect(bx, by, bw, bh);
     int fill = ((bw - 2) * pct) / 100;
     if (fill > 0) {
@@ -281,14 +317,15 @@ static void ui_start_flash(void)
     display_oled_clear();
     if (err == ESP_OK) {
         ui_draw_header("KESZ");
-        display_oled_text_center(28, "Flash OK", 1);
+        display_oled_text_center(26, "Flash OK", UI_LIST_SCALE);
         ESP_LOGI(TAG, "flash kesz: %s", fw_path);
     } else {
         ui_draw_header("HIBA");
+        /* Az esp_err név hosszú lehet -> scale 1, hogy elférjen. */
         display_oled_text_center(28, esp_err_to_name(err), 1);
         ESP_LOGE(TAG, "flash hiba: %s", esp_err_to_name(err));
     }
-    display_oled_text_center(50, "Nyomj gombot", 1);
+    display_oled_text_center(52, "Nyomj gombot", 1);
     display_oled_flush();
 
     /* Várunk egy gombnyomásra (bármilyen enkóder-eseményt elnyelünk). */
@@ -308,7 +345,7 @@ static void ui_start_detect(void)
     if (prog_session_busy()) {
         display_oled_clear();
         ui_draw_header("Cel info");
-        display_oled_text_center(28, "Foglalt", 1);
+        display_oled_text_center(28, "Foglalt", UI_LIST_SCALE);
         display_oled_flush();
         enc_event_t evb;
         while (input_enc_get(&evb, portMAX_DELAY)) {
@@ -320,7 +357,7 @@ static void ui_start_detect(void)
     /* "Detektalas..." képernyő a (potenciálisan lassú) SWD bring-up alatt. */
     display_oled_clear();
     ui_draw_header("Cel info");
-    display_oled_text_center(28, "Detektalas...", 1);
+    display_oled_text_center(28, "Detektalas", UI_LIST_SCALE);
     display_oled_flush();
 
     prog_status_t st;
@@ -329,25 +366,29 @@ static void ui_start_detect(void)
 
     display_oled_clear();
     if (err == ESP_OK && st.dev_id != 0) {
-        /* Siker: cél neve + DEV_ID hexben + (ha van) üzenet/méret. */
+        /* Siker: cél neve (scale 2, csonkolva) + DEV_ID hexben (≤10 char, scale 2)
+           + (ha van) üzenet scale 1-en (hosszú lehet). */
         ui_draw_header("Cel info");
-        display_oled_text(2, 18, st.target_name[0] ? st.target_name : "?", 1);
+        char nbuf[UI_LIST_MAXCH + 1];
+        display_oled_text(2, 16,
+                          ui_trunc(st.target_name[0] ? st.target_name : "?",
+                                   nbuf, sizeof(nbuf), UI_LIST_MAXCH),
+                          UI_LIST_SCALE);
 
         char dbuf[20];
-        snprintf(dbuf, sizeof(dbuf), "DEV: 0x%03X", st.dev_id);
-        display_oled_text(2, 30, dbuf, 1);
+        snprintf(dbuf, sizeof(dbuf), "DEV:0x%03X", st.dev_id);
+        display_oled_text(2, 34, dbuf, UI_LIST_SCALE);
 
-        if (st.message[0]) {
-            display_oled_text(2, 42, st.message, 1);
-        }
+        /* (Az st.message hosszú lehet és ütközne a prompttal — kihagyjuk;
+           a kulcs-info a név + DEV_ID. A teljes üzenet a logban marad.) */
         ESP_LOGI(TAG, "detekt OK: %s DEV=0x%03X %s",
                  st.target_name, st.dev_id, st.message);
     } else {
-        /* Nincs cél vagy hiba: üzenet, vagy az esp_err név. */
+        /* Nincs cél vagy hiba: nagy "Nincs cel", alatta üzenet scale 1. */
         ui_draw_header("Cel info");
-        display_oled_text_center(24, "Nincs cel", 1);
+        display_oled_text_center(20, "Nincs cel", UI_LIST_SCALE);
         const char *m = st.message[0] ? st.message : esp_err_to_name(err);
-        display_oled_text_center(40, m, 1);
+        display_oled_text_center(42, m, 1);
         ESP_LOGW(TAG, "detekt sikertelen: err=%s msg=%s",
                  esp_err_to_name(err), st.message);
     }
@@ -381,15 +422,18 @@ static void ui_avr_flash_cb(const char *phase, int percent, void *ctx)
     display_oled_clear();
     ui_draw_header(phase ? phase : "...");
 
-    /* A flashelt fájl neve, illetve a százalék szövegként. */
-    display_oled_text(2, 18, s_sel_name[0] ? s_sel_name : "?", 1);
+    /* A flashelt fájl neve csonkolva (scale 2), illetve a százalék scale 2. */
+    char nbuf[UI_LIST_MAXCH + 1];
+    const char *nm = ui_trunc(s_sel_name[0] ? s_sel_name : "?",
+                              nbuf, sizeof(nbuf), UI_LIST_MAXCH);
+    display_oled_text(2, 16, nm, UI_LIST_SCALE);
 
     char pbuf[8];
     snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
-    display_oled_text(2, 30, pbuf, 1);
+    display_oled_text(2, 34, pbuf, UI_LIST_SCALE);
 
     /* Progress-bar: 1px keret + belső kitöltés a százalék arányában. */
-    const uint8_t bx = 2, by = 44, bw = OLED_W - 4, bh = 12;
+    const uint8_t bx = 2, by = 52, bw = OLED_W - 4, bh = 10;
     display_oled_rect(bx, by, bw, bh);
     int fill = ((bw - 2) * pct) / 100;
     if (fill > 0) {
@@ -414,14 +458,14 @@ static void ui_avr_start_flash(void)
     display_oled_clear();
     if (err == ESP_OK) {
         ui_draw_header("KESZ");
-        display_oled_text_center(28, "Flash OK", 1);
+        display_oled_text_center(26, "Flash OK", UI_LIST_SCALE);
         ESP_LOGI(TAG, "AVR flash kesz: %s", fw_path);
     } else {
         ui_draw_header("HIBA");
         display_oled_text_center(28, esp_err_to_name(err), 1);
         ESP_LOGE(TAG, "AVR flash hiba: %s", esp_err_to_name(err));
     }
-    display_oled_text_center(50, "Nyomj gombot", 1);
+    display_oled_text_center(52, "Nyomj gombot", 1);
     display_oled_flush();
 
     /* Várunk egy gombnyomásra (bármilyen enkóder-eseményt elnyelünk). */
@@ -441,7 +485,7 @@ static bool ui_avr_start_detect(void)
     /* "Detektalas..." képernyő a (potenciálisan lassú) ISP bring-up alatt. */
     display_oled_clear();
     ui_draw_header("AVR ISP");
-    display_oled_text_center(28, "Detektalas...", 1);
+    display_oled_text_center(28, "Detektalas", UI_LIST_SCALE);
     display_oled_flush();
 
     avr_dev_t dev;
@@ -453,19 +497,23 @@ static bool ui_avr_start_detect(void)
     display_oled_clear();
     ui_draw_header("AVR ISP");
     if (ok) {
-        /* Signature 3 bájt hexben. */
+        /* Eszköznév (ismert) scale 2, csonkolva — ez a kulcs-info. */
+        char nbuf[UI_LIST_MAXCH + 1];
+        display_oled_text(2, 14,
+                          ui_trunc((dev.known && dev.name) ? dev.name : "ismeretlen",
+                                   nbuf, sizeof(nbuf), UI_LIST_MAXCH),
+                          UI_LIST_SCALE);
+
+        /* Signature 3 bájt hexben (hosszú -> scale 1). */
         char sbuf[24];
-        snprintf(sbuf, sizeof(sbuf), "SIG: %02X %02X %02X",
+        snprintf(sbuf, sizeof(sbuf), "SIG:%02X %02X %02X",
                  dev.sig[0], dev.sig[1], dev.sig[2]);
-        display_oled_text(2, 16, sbuf, 1);
+        display_oled_text(2, 34, sbuf, 1);
 
-        /* Eszköznév (ismert) vagy "ismeretlen". */
-        display_oled_text(2, 28, (dev.known && dev.name) ? dev.name : "ismeretlen", 1);
-
-        /* Flash méret bájtban. */
+        /* Flash méret bájtban (scale 1). */
         char fbuf[24];
-        snprintf(fbuf, sizeof(fbuf), "Flash: %u B", (unsigned)dev.flash_size);
-        display_oled_text(2, 40, fbuf, 1);
+        snprintf(fbuf, sizeof(fbuf), "Flash:%uB", (unsigned)dev.flash_size);
+        display_oled_text(2, 44, fbuf, 1);
 
         display_oled_text_center(54, "OK=tovabb", 1);
         ESP_LOGI(TAG, "AVR detekt OK: sig %02X %02X %02X %s flash=%u",
@@ -473,8 +521,8 @@ static bool ui_avr_start_detect(void)
                  (dev.known && dev.name) ? dev.name : "ismeretlen",
                  (unsigned)dev.flash_size);
     } else {
-        display_oled_text_center(24, "Nincs cel", 1);
-        display_oled_text_center(40, esp_err_to_name(err), 1);
+        display_oled_text_center(18, "Nincs cel", UI_LIST_SCALE);
+        display_oled_text_center(42, esp_err_to_name(err), 1);
         display_oled_text_center(54, "Nyomj gombot", 1);
         ESP_LOGW(TAG, "AVR detekt sikertelen: err=%s", esp_err_to_name(err));
     }
