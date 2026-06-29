@@ -1,0 +1,16 @@
+# USB MSC host (pendrive forras) build-konfiguracio fragment.
+#
+# Hasznalat (kulon build-konyvtarban, a fo sdkconfig erintese nelkul):
+#   idf.py -B build_usb -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.usb" build
+#   idf.py -B build_usb -p <PORT> flash monitor
+#
+# vagy a meglevo build-be (a sdkconfig-ot modositja):
+#   beolvasztva menuconfig-bol, vagy a ket sort kezzel a sdkconfig-ba.
+#
+# FONTOS: az OTG host a GPIO19/20 native USB padot foglalja -> a masodlagos
+# USB-Serial/JTAG konzol KIKAPCSOL, a konzol UART0-n (GPIO43/44) megy. A
+# flash+monitor ekkor KULSO USB-UART-rol tortenik. Kikapcsolashoz toröld ezt
+# a ket sort (vagy CONFIG_USB_MSC_HOST_ENABLE=n + a masodlagos konzol vissza).
+
+CONFIG_USB_MSC_HOST_ENABLE=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
