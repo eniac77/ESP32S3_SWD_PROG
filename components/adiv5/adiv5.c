@@ -193,9 +193,15 @@ static uint32_t swd_write_raw(bool ap, uint32_t addr, uint32_t data)
 
     uint32_t ack = swd_phy_seq_in(3) & 0x7u;
 
-    /* turnaround vissza meghajtásra (íráshoz mindenképp) */
+    /* turnaround vissza meghajtásra. KRITIKUS: a TRN-órajelet BEMENETI módban
+       (elengedett vonal) adjuk, hogy a cél az ACK[2] után tisztán elengedhesse
+       a vonalat — és CSAK UTÁNA váltunk meghajtásra. Ha előbb váltanánk
+       meghajtásra és úgy adnánk a TRN-órajelet, a cél még éppen meghajtott
+       vonalával KONTENCIÓBA kerülnénk (mindketten hajtjuk). Ez írás-specifikus
+       (olvasásnál nincs ACK->adat turnaround), és pont ez okozta a szórványos
+       ACK=0x0 + beragadt-alacsony glitch-eket. */
+    (void)swd_phy_seq_in(1);                  /* 1 órajel TRN, vonal elengedve */
     swd_phy_dir(true);
-    swd_phy_seq_out(0, 1);                    /* 1 órajel TRN */
 
     if (ack == ACK_OK) {
         swd_phy_seq_out(data, 32);
