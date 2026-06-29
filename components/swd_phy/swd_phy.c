@@ -180,12 +180,16 @@ uint32_t swd_phy_seq_in(int n)
     for (int i = 0; i < n; i++) {
         clk_low();
         delay_half();
-        clk_high();
-        /* Mintavétel a magas fázisban (felfutó él után). */
+        /* Mintavétel a LOW fázis végén, a felfutó él ELŐTT.
+         * A cél a felfutó élen VÁLT a következő bitre (ahogy mi is a write-on),
+         * így az aktuális bit a low fázisban stabil, és a felfutó élen lenne
+         * mintázandó. Ha a clk_high() UTÁN mintáznánk, a cél már a következő
+         * bitre váltott -> 1 bit csúszás, az ACK LSB elveszik -> 0x0. */
         uint32_t r = dedic_gpio_bundle_read_in(s_in);
         if (r & IN_SWDIO_MASK) {
             out |= (1u << i);
         }
+        clk_high();
         delay_half();
     }
     return out;
