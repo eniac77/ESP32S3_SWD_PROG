@@ -307,6 +307,12 @@ bool swd_phy_selftest_io(void)
     return ok;
 }
 
+/* ============================ szint-olvasás (diag) ======================== */
+int swd_phy_read_level(void)
+{
+    return (dedic_gpio_bundle_read_in(s_in) & IN_SWDIO_MASK) ? 1 : 0;
+}
+
 /* ============================ nRST (open-drain) =========================== *
  * assert=true  -> 0 szint kihúzva (reset aktív)
  * assert=false -> magas impedancia, a külső (és belső) pullup húz fel.

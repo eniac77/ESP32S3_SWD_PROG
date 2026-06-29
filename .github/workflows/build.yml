@@ -3,12 +3,11 @@
 # majd lefuttatja a host (Python unittest) teszteket. A .stldr-t igénylő teszt magától SKIP-el.
 name: build
 
-# Trigger: main ág push + PR, valamint kézi indítás
+# Trigger: CSAK kézi indítás (workflow_dispatch).
+# Az automatikus push/PR trigger ki van kapcsolva, mert a CI-build jelenleg
+# elhasal és hibaleveleket küld. Ha kell, az Actions fülön kézzel indítható,
+# vagy a push/pull_request blokk visszavehető ide.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:

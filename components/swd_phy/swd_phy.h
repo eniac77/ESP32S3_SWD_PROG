@@ -29,6 +29,11 @@ void     swd_phy_set_freq_hz(uint32_t hz);
 /* nRST (open-drain) vezérlés: assert=true -> reset aktív (alacsony szint). */
 void     swd_phy_nrst(bool assert);
 
+/* A SWDIO pad pillanatnyi bemeneti szintje (0/1) — diagnosztikához.
+   A hívó előbb tegyen turnaroundot bemenetre (swd_phy_dir(false)), ha a
+   cél/szabad vonal szintjére kíváncsi. Nem órajelez, csak mintát vesz. */
+int      swd_phy_read_level(void);
+
 /* --- Diagnosztika (bench bring-up) ---
  * PHY-szintű IO-önteszt: ellenőrzi, hogy a bemeneti út (dedic input bundle)
  * valóban a SWDIO pad fizikai szintjét olvassa-e. Loopback a padon át:

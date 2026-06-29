@@ -542,6 +542,14 @@ static void swd_wire_select(void)
     swd_phy_dir(false);
     (void)swd_phy_seq_in(50);
 
+    /* DIAG: a szabad (elengedett) vonal szintje. 0 = valami aktívan lehúzza
+       (cél hajtja: app remap / reset?), 1 = szabad/felhúzó (a mi oldalunk). */
+    {
+        int lv = swd_phy_read_level();
+        ESP_LOGW(TAG, "re-sync flush: szabad SWDIO szint=%d (%s)",
+                 lv, lv ? "felhúzó/szabad" : "valaki lehúzza");
+    }
+
     line_reset();
     /* JTAG-to-SWD switch: 0xE79E, LSB-first 16 bit (a vezetéken 0x9E, 0xE7). */
     ESP_LOGD(TAG, "JTAG->SWD switch küldése (0xE79E, 16 bit LSB-first)");
