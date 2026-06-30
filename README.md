@@ -19,6 +19,7 @@ Egyetlen ESP32-S3-N16R8 modul (16 MB flash, 8 MB octal PSRAM), ESP-IDF alapon. A
 - **WiFi web-UI**: statikus felület + REST API + WebSocket (élő adat, programozási progress, log).
 - **FTP-szerver**: a LittleFS fölött, firmware és `.cfg` drag-drop fel-/letöltéshez.
 - **LittleFS tár**: power-fail biztos, wear-leveling, ~13 MB a 16 MB flashen (`/lfs/fw`, `/lfs/cfg`, `/lfs/www`).
+- **USB pendrive forrás** (opcionális, Kconfig-gated, default KI): bedugott FAT32 stickről közvetlenül flashelhető firmware és tölthető `.cfg` — ha van stick, a firmware- (`/usb/fw`) és config-listát (`/usb/cfg`) a **stickről** olvassa (OLED + web), a belsőt elrejti; kihúzva visszaáll. Hot-plug. Lásd a [USB pendrive forrás](#usb-pendrive-forrás-opcionális) szekciót.
 
 ---
 
@@ -61,7 +62,7 @@ swd_phy  →  adiv5  →  cortexm_debug  →  flm_runner  →  prog_session
 (dedic_gpio HAL) (DP/AP transport) (halt/reset, mem R/W) (FLM futtatás) (orchestráció)
 ```
 
-A 16 komponens (`components/`):
+A komponensek (`components/`):
 
 | Komponens | Szerep |
 |---|---|
@@ -75,6 +76,8 @@ A 16 komponens (`components/`):
 | `target_serial` | UART híd: `.cfg` fel/le, élő adat |
 | `target_state` | közös élő-adat modell (UI + WS forrása) |
 | `storage_lfs` | LittleFS mount + fájl-API + lock |
+| `storage_src` | forrás-feloldó (LFS ↔ USB prefix-diszpécs + lock) |
+| `storage_usb` | USB MSC host: pendrive mount `/usb` alá (Kconfig-gated) |
 | `input_enc` | enkóder ISR/PCNT + gomb → eseménysor |
 | `display_oled` | SSD1306 driver + UI képernyők |
 | `ui` | helyi UI taszk (menü, render) |
@@ -154,7 +157,7 @@ Az N16R8 octal PSRAM és a belső flash több GPIO-t lefoglal — ezekre perifé
 
 - **Octal PSRAM (R8): GPIO33–GPIO37 foglalt** — sose oszd ki perifériára.
 - **Belső flash SPI: GPIO26–GPIO32 foglalt.**
-- **Native USB pad: GPIO19/20 fenntartva** a jövőbeli USB host (pendrive) funkcióhoz.
+- **Native USB pad: GPIO19/20** — az opcionális USB host (pendrive) funkció használja (`CONFIG_USB_MSC_HOST_ENABLE=y`); lásd a [USB pendrive forrás](#usb-pendrive-forrás-opcionális) szekciót. Alapból (default KI) szabad/fenntartott.
 - **Strapping: GPIO0, 3, 45, 46** — kerüld vagy óvatosan kezeld.
 
 **Szabadon kiosztható:** GPIO1–18, 21, 38–42, 47, 48.
@@ -245,6 +248,34 @@ CONFIG_HTTPD_WS_SUPPORT=y         # web_ui /ws élő adat + progress
 1. Töltsd fel a `.bin`-t a `/lfs/fw`-be (web-UI `POST /api/upload`, FTP, vagy enkóder-menü forrásból).
 2. Helyi UI-ban válaszd ki: `Program firmware` → fájl → a készülék SWD-n connectel és kiírja a detektált cél-típust + flash méretet.
 3. Erősítsd meg → erase/program/verify, a progress az OLED-en és a web WebSocketen is látszik.
+
+---
+
+## USB pendrive forrás (opcionális)
+
+✅ **HW-igazolt** (mount → lista a stickről → forrásváltás), **Kconfig-gated, default KI**. Bekapcsolva (`CONFIG_USB_MSC_HOST_ENABLE=y`) a készülék az ESP32-S3 **native USB OTG host** lábain (GPIO19/20) fogad egy FAT32 pendrive-ot, és ha van bedugva stick, a firmware- és config-forrást **arról** olvassa.
+
+- **Mit ad**: a bedugott FAT32 stick a `/usb` alá mountolódik (`storage_usb`: `usb_host_msc` + `esp_vfs_fat`, hot-plug). Ha van stick, a firmware (`/usb/fw`) + config (`/usb/cfg`) lista (OLED + web) a **stickről** jön, a belső LFS-t elrejti; kihúzva visszaáll. A forrásválasztás a `storage_src` rétegen megy (prefix-alapú diszpécs LFS ↔ USB + a megfelelő lock).
+- **Stick-elrendezés**: a gyökérben `fw/` (és opcionálisan `cfg/`) mappa kell — a firmware-ek a `fw/`, a configok a `cfg/` alatt.
+- **www és FTP**: szándékosan végig a **belső LFS**-en marad. A flashelendő forrásfájl a flash / WiFi-pause **ELŐTT** teljesen PSRAM-ba olvasódik, így a stick kihúzása flash közben nem töri meg a műveletet.
+
+### Bekapcsolás
+
+A `sdkconfig.usb` fragment (`CONFIG_USB_MSC_HOST_ENABLE=y` + `CONFIG_ESP_CONSOLE_SECONDARY_NONE=y`) külön build-könyvtárban kapcsolja be, a fő `sdkconfig` érintése nélkül:
+
+```powershell
+. "C:\Users\jenei\esp\v5.5.1\esp-idf\export.ps1"
+idf.py -B build_usb -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.usb" build
+idf.py -B build_usb -p <PORT> flash monitor   # flash/monitor KÜLSŐ USB-UART-ról
+```
+
+### Fontos megkötések (HW-n megtanulva)
+
+- **Pad-ütközés a konzollal**: az OTG host a GPIO19/20 native USB padokat foglalja, ezért a **másodlagos USB-Serial/JTAG konzolt KI kell kapcsolni** (`CONFIG_ESP_CONSOLE_SECONDARY_NONE=y`). A konzol így **UART0**-ra kerül; a flash/monitor külső **USB-UART** adapterről megy (GPIO43/44). Fordítási `#error` véd, ha a másodlagos konzol mégis bent maradna a USB-host mellett.
+- **Mount-minta (deadlock-kerülés)**: a MSC connect-callbackből **nem** hívható közvetlenül a `msc_host_install_device` (a driver háttér-taszkjában fut → deadlock). A callback csak sorba teszi az eseményt, egy külön `usb_msc` task végzi a tényleges mountot.
+- **Default KI = nulla viselkedésváltozás**: kikapcsolva a natív USB flash/monitor megmarad, a GPIO19/20 szabad.
+
+> Részletek: a [`reference/ESP32S3_SWD_PROG_Plan.md`](reference/ESP32S3_SWD_PROG_Plan.md) 18. szekciója.
 
 ---
 
