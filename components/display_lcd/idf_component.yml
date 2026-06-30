@@ -1,0 +1,15 @@
+## display_lcd komponens — managed függőségek (ILI9488 + GT911 + LVGL).
+##
+## FONTOS: az ILI9488 panel-driver az ESP Component Registry-ben az
+## "atanisoft/esp_lcd_ili9488" néven létezik (NEM "espressif/..."). RGB565->RGB666
+## konverziót végez a draw_bitmap callbackben (CONFIG_LV_COLOR_DEPTH_16=y kell).
+##
+## Az esp_lvgl_port tranzitívan behúzza az lvgl-t és az esp_lcd-t; az lvgl-t
+## itt is rögzítjük (v9 ág), hogy ne legyen verzió-ütközés.
+dependencies:
+  idf:
+    version: '>=5.0'
+  lvgl/lvgl: '^9.2.0'
+  espressif/esp_lvgl_port: '^2.4.0'
+  atanisoft/esp_lcd_ili9488: '^1.1.0'
+  espressif/esp_lcd_touch_gt911: '^1.1.0'

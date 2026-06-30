@@ -4,6 +4,7 @@ idf_component_register(
     REQUIRES
         storage_lfs
         display_oled
+        display_lcd
         input_enc
         ui
         net_wifi
