@@ -219,16 +219,19 @@ refresh** bőven elég; teljes-frissítés csak ritkán (képernyőváltás).
 
 ## 9. Munkafázisok (javasolt sorrend)
 
-1. **D0 — Komponens-váz:** `display_lcd` komponens + `idf_component.yml` (lvgl, lvgl_port, ili9488,
-   gt911), üres `display_lcd_init`, zöld build (managed deps letöltése).
-2. **D1 — Panel bring-up:** SPI + ILI9488 init, „Hello" teszt-kép HW-n (szín/orientáció).
-3. **D2 — Touch + indev:** GT911 + LVGL pointer-indev; enkóder encoder-indev (input_enc bekötés).
-4. **D3 — UI-port:** `ui.c` képernyők LVGL-re (idle → menü → fw-lista → fwsel → progress → detect →
-   AVR-flow). A state-flow átemelése.
-5. **D4 — Flash-progress:** szálbiztos progress-modell (5. szekció), throttle, és valódi flash-teszt
+1. **D0 — Komponens-váz: ✅ KÉSZ** (commit `160936b`) — `display_lcd` komponens + `idf_component.yml`
+   (lvgl, lvgl_port, ili9488, gt911), üres `display_lcd_init`, zöld build (managed deps letöltése).
+2. **D1 — Panel bring-up: ✅ KÉSZ** (commit `c0fdc43`, D1+D2) — SPI + ILI9488 init, „Hello" teszt-kép
+   (szín/orientáció — HW-finomhangolás D4-ben).
+3. **D2 — Touch + indev: ✅ KÉSZ** (commit `c0fdc43`, D1+D2) — GT911 + LVGL pointer-indev; enkóder
+   encoder-indev (input_enc bekötés).
+4. **D3 — UI-port: ✅ KÉSZ** (commit `ea6888d`) — `ui.c` képernyők LVGL-re (idle → menü → fw-lista →
+   fwsel → progress → detect → AVR-flow). A state-flow átemelése.
+5. **D4 — Flash-progress + HW bring-up: ⏳ HÁTRA** — szálbiztos progress-modell (5. szekció), throttle,
+   valódi panel-bekötés + orientáció/szín/SPI-frekvencia/GT911 hangolás, és valódi flash-teszt
    STM32-n — **idő-regresszió mérése** (vs. ~3,1 s F030).
-6. **D5 — Cleanup:** `display_oled` eltávolítása, `main.c` init-csere, dokumentáció (CLAUDE.md,
-   plan 15. szekció frissítése), zöld build + commit.
+6. **D5 — Cleanup: ✅ KÉSZ** — `display_oled` eltávolítva, `main.c`/`ui` már a `display_lcd`-t használja,
+   dokumentáció frissítve (CLAUDE.md, ez a doksi), zöld build + commit.
 
 ---
 

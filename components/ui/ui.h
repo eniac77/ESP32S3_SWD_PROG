@@ -1,6 +1,7 @@
 #pragma once
-/* Helyi UI: az enkóder-eseményeket fogyasztja és OLED-re renderel.
- * A display_oled + input_enc fölött ül (terv 15. szekció).
+/* Helyi UI: az enkóder-eseményeket fogyasztja és ILI9488 LCD-re renderel (LVGL).
+ * A display_lcd + input_enc fölött ül (terv 15. szekció; LVGL-port:
+ * reference/ILI9488_LVGL_port.md).
  */
 #include "esp_err.h"
 
@@ -8,7 +9,7 @@
 extern "C" {
 #endif
 
-/* Létrehozza a ui_task-ot (feltételezi: display_oled_init + input_enc_init
+/* Létrehozza a ui_task-ot (feltételezi: display_lcd_init + input_enc_init
    már megtörtént). A taszk a saját eseménysorán pörög, csak változásra renderel. */
 esp_err_t ui_start(void);
 

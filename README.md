@@ -1,6 +1,8 @@
 # ESP32-S3 önálló SWD programozó + konfigurátor
 
-PC nélküli, hordozható eszköz, amely **STM32 mikrokontrollereket programoz fel SWD-n** (a firmware-t saját LittleFS tárolójából olvasva), **soros konfig-hídként** kommunikál a futó cél-alkalmazással, helyileg **OLED + gombos enkóderről** kezelhető, és **WiFi-n web-UI-t (REST + WebSocket) és FTP-szervert** ad a fájlok eléréséhez.
+PC nélküli, hordozható eszköz, amely **STM32 mikrokontrollereket programoz fel SWD-n** (a firmware-t saját LittleFS tárolójából olvasva), **soros konfig-hídként** kommunikál a futó cél-alkalmazással, helyileg **ILI9488 480×320 TFT + GT911 touch + gombos enkóderről (LVGL)** kezelhető, és **WiFi-n web-UI-t (REST + WebSocket) és FTP-szervert** ad a fájlok eléréséhez.
+
+> **Branch-megjegyzés:** ez a `feat/ili9488-lvgl` ág a **kijelzős (ILI9488 480×320 SPI TFT + GT911 kapacitív touch + LVGL v9)** változat — az SSD1306 128×64 OLED-et váltja a `display_lcd` komponens. **Az OLED-verzió a `main` ágon él tovább.** A kijelző-port szoftveresen kész és zöldre fordul (D0–D3); HW bring-up (D4) hátra. Részletek: [reference/ILI9488_LVGL_port.md](reference/ILI9488_LVGL_port.md). Az alábbi README-ben több helyen az eredeti OLED-bekötés szerepel — ezek a `main` ágra vonatkoznak.
 
 Egyetlen ESP32-S3-N16R8 modul (16 MB flash, 8 MB octal PSRAM), ESP-IDF alapon. A flash-kód CMSIS `.FLM` / ST `.stldr` blobokból fut a cél STM32 RAM-jában (RAM flash loader). Támogatott STM32 családok: **F0, F1, F2, F3, F4, F7, H7, H5, G0, G4, L0, L1, L4, L5, U0, U5, WB, WL, WBA, C0** — **80 DEV_ID**, a teljes STM32CubeProgrammer belső-flash loader palettához igazítva.
 
@@ -14,12 +16,12 @@ Egyetlen ESP32-S3-N16R8 modul (16 MB flash, 8 MB octal PSRAM), ESP-IDF alapon. A
 - **Multi-család támogatás**: 20 STM32 család / **80 DEV_ID** (F0/F1/F2/F3/F4/F7/H7/H5/G0/G4/L0/L1/L4/L5/U0/U5/WB/WL/WBA/C0), DEV_ID alapú cél-felismeréssel és méret-detektálással. A DBGMCU IDCODE-cím családfüggő (M0/M0+: 0x40015800, klasszikus M3/M4/M7: 0xE0042000, M33: 0xE0044000, H7: 0x5C001000) — a detektálás mind a négyet végigpróbálja.
 - **AVR ISP programozó** (külön interfész): ATtiny13/13A és rokon AVR-ek (ATtiny25/45/85/2313, ATmega8/328P) felprogramozása bit-bang SPI ISP-n, `.hex` (Intel HEX) vagy `.bin` forrásból, signature-detektálással. Lábak: SCK=GPIO15, MOSI=GPIO16, MISO=GPIO7, RESET=GPIO21 (Kconfig-gal állítható).
 - **Soros konfig-híd**: bináris `.cfg` fájlok fel-/letöltése a futó cél STM32 alkalmazásába/ból, keretezett UART-protokollon (`SOF | LEN | CMD | PAYLOAD | CRC16`).
-- **Élő adat**: a cél periodikus státusz-frame-jei egy közös `target_state` modellbe folynak, amit az OLED és a web-UI WebSocket egyszerre fogyaszt.
-- **Helyi UI**: SSD1306 128×64 OLED + gombos enkóder (görgetett fájllista, cél-típus, %-os progress bar, élő adat).
+- **Élő adat**: a cél periodikus státusz-frame-jei egy közös `target_state` modellbe folynak, amit a kijelző és a web-UI WebSocket egyszerre fogyaszt.
+- **Helyi UI**: ILI9488 480×320 SPI TFT + GT911 kapacitív touch + gombos enkóder, **LVGL v9** (görgetett fájllista, cél-típus, %-os progress bar, élő adat). *(Az SSD1306 OLED-változat a `main` ágon.)*
 - **WiFi web-UI**: statikus felület + REST API + WebSocket (élő adat, programozási progress, log).
 - **FTP-szerver**: a LittleFS fölött, firmware és `.cfg` drag-drop fel-/letöltéshez.
 - **LittleFS tár**: power-fail biztos, wear-leveling, ~13 MB a 16 MB flashen (`/lfs/fw`, `/lfs/cfg`, `/lfs/www`).
-- **USB pendrive forrás** (opcionális, Kconfig-gated, default KI): bedugott FAT32 stickről közvetlenül flashelhető firmware és tölthető `.cfg` — ha van stick, a firmware- (`/usb/fw`) és config-listát (`/usb/cfg`) a **stickről** olvassa (OLED + web), a belsőt elrejti; kihúzva visszaáll. Hot-plug. Lásd a [USB pendrive forrás](#usb-pendrive-forrás-opcionális) szekciót.
+- **USB pendrive forrás** (opcionális, Kconfig-gated, default KI): bedugott FAT32 stickről közvetlenül flashelhető firmware és tölthető `.cfg` — ha van stick, a firmware- (`/usb/fw`) és config-listát (`/usb/cfg`) a **stickről** olvassa (kijelző + web), a belsőt elrejti; kihúzva visszaáll. Hot-plug. Lásd a [USB pendrive forrás](#usb-pendrive-forrás-opcionális) szekciót.
 
 ---
 
@@ -32,7 +34,7 @@ flowchart TB
     FTP[ftp_srv]
     LFS[(LittleFS /lfs<br/>fw/*.bin · cfg/*.cfg · www/*)]
     ENC[input_enc<br/>enkóder + gomb]
-    OLED[display_oled<br/>SSD1306]
+    OLED[display_lcd<br/>ILI9488 + GT911 + LVGL]
     UI[ui / target_state]
     PROG[prog_session]
     SWD[SWD<br/>SWCLK / SWDIO]
@@ -79,7 +81,7 @@ A komponensek (`components/`):
 | `storage_src` | forrás-feloldó (LFS ↔ USB prefix-diszpécs + lock) |
 | `storage_usb` | USB MSC host: pendrive mount `/usb` alá (Kconfig-gated) |
 | `input_enc` | enkóder ISR/PCNT + gomb → eseménysor |
-| `display_oled` | SSD1306 driver + UI képernyők |
+| `display_lcd` | ILI9488 480×320 SPI TFT + GT911 touch + LVGL v9 (port-taszk, UI képernyők) |
 | `ui` | helyi UI taszk (menü, render) |
 | `net_wifi` | STA/AP, provisioning, mDNS |
 | `web_ui` | esp_http_server: REST + WebSocket |
@@ -101,8 +103,16 @@ Modul: **ESP32-S3-N16R8** (16 MB flash, 8 MB octal PSRAM).
 | Cél UART TX | GPIO17 | `target_serial` (UART1, sima 3.3 V) |
 | Cél UART RX | GPIO18 | `target_serial` (sima 3.3 V) |
 | (tartalék) | GPIO15 | szabad (korábbi RS485 DE elhagyva) |
-| OLED I2C SDA | GPIO8 | SSD1306 128×64 |
-| OLED I2C SCL | GPIO9 | I2C0, 400 kHz |
+| LCD SPI MOSI | GPIO8 | ILI9488 480×320 SPI TFT |
+| LCD SPI SCLK | GPIO9 | ILI9488 |
+| LCD CS | GPIO38 | ILI9488 chip-select |
+| LCD DC | GPIO39 | ILI9488 data/command |
+| LCD RST | GPIO40 | ILI9488 reset |
+| LCD BL | GPIO41 | háttérvilágítás kapcsoló |
+| Touch I2C SDA | GPIO47 | GT911 kapacitív touch |
+| Touch I2C SCL | GPIO48 | GT911 |
+| Touch INT | GPIO42 | GT911 interrupt |
+| Touch RST | GPIO2 | GT911 reset |
 | Enkóder A | GPIO10 | ISR (vagy PCNT) |
 | Enkóder B | GPIO11 | irány |
 | Enkóder SW (gomb) | GPIO12 | ISR + debounce, short/long |
@@ -138,15 +148,23 @@ MVP: **3.3 V-os cél**, SWCLK/SWDIO közvetlenül, soros ~33–100 Ω-mal. Elté
    │ GPIO1  VREF (ADC) ─────┼────────────┤ VDD (sense)      │
    └───────────────────────┘             └──────────────────┘
 
-        ESP32-S3-N16R8                  OLED + Enkóder
-   ┌───────────────────────┐      ┌──────────────────────────┐
-   │ GPIO8  SDA ────────────┼──────┤ SSD1306 SDA              │
-   │ GPIO9  SCL ────────────┼──────┤ SSD1306 SCL (I2C0 400k)  │
-   │ 3V3 / GND ─────────────┼──────┤ SSD1306 VCC / GND        │
-   │ GPIO10 ENC_A ──────────┼──────┤ Enkóder A                │
-   │ GPIO11 ENC_B ──────────┼──────┤ Enkóder B                │
-   │ GPIO12 ENC_SW ─────────┼──────┤ Enkóder gomb (SW)        │
-   └───────────────────────┘      └──────────────────────────┘
+        ESP32-S3-N16R8             ILI9488 TFT + GT911 touch + Enkóder
+   ┌───────────────────────┐      ┌──────────────────────────────────┐
+   │ GPIO9  SCLK ───────────┼──────┤ ILI9488 SCK                      │
+   │ GPIO8  MOSI ───────────┼──────┤ ILI9488 SDI/MOSI                 │
+   │ GPIO38 CS ─────────────┼──────┤ ILI9488 CS                       │
+   │ GPIO39 DC ─────────────┼──────┤ ILI9488 DC/RS                    │
+   │ GPIO40 RST ────────────┼──────┤ ILI9488 RESET                    │
+   │ GPIO41 BL ─────────────┼──────┤ ILI9488 LED (háttérvilágítás)    │
+   │ GPIO47 SDA ────────────┼──────┤ GT911 SDA (I2C touch)            │
+   │ GPIO48 SCL ────────────┼──────┤ GT911 SCL                        │
+   │ GPIO42 INT ────────────┼──────┤ GT911 INT                        │
+   │ GPIO2  RST ────────────┼──────┤ GT911 RST                        │
+   │ 3V3 / GND ─────────────┼──────┤ panel VCC / GND                  │
+   │ GPIO10 ENC_A ──────────┼──────┤ Enkóder A                        │
+   │ GPIO11 ENC_B ──────────┼──────┤ Enkóder B                        │
+   │ GPIO12 ENC_SW ─────────┼──────┤ Enkóder gomb (SW)                │
+   └───────────────────────┘      └──────────────────────────────────┘
 ```
 
 ---
@@ -220,9 +238,9 @@ CONFIG_HTTPD_WS_SUPPORT=y         # web_ui /ws élő adat + progress
 
 ## Használat
 
-### Helyi UI (OLED + enkóder)
+### Helyi UI (ILI9488 TFT + GT911 touch + enkóder)
 
-- **Enkóder** görget, **rövid gomb** = belép/kiválaszt, **hosszú gomb** = vissza/mégse.
+- **Enkóder** görget, **rövid gomb** = belép/kiválaszt, **hosszú gomb** = vissza/mégse; **érintőképernyő** alternatív bevitel (LVGL).
 - **Idle/status**: WiFi (STA/AP, IP), cél detektálva (típus), soros link.
 - **Főmenü**: `Program firmware` / `Cél konfig` / `Élő adat` / `Beállítások`.
 - **Program firmware**: görgetett fájllista (`/lfs/fw`) → SWD connect → detektált cél-típus + flash méret → megerősítés → flash, **%-os progress bar** (Erase/Program/Verify) → eredmény (OK/HIBA + kód).
@@ -247,7 +265,7 @@ CONFIG_HTTPD_WS_SUPPORT=y         # web_ui /ws élő adat + progress
 
 1. Töltsd fel a `.bin`-t a `/lfs/fw`-be (web-UI `POST /api/upload`, FTP, vagy enkóder-menü forrásból).
 2. Helyi UI-ban válaszd ki: `Program firmware` → fájl → a készülék SWD-n connectel és kiírja a detektált cél-típust + flash méretet.
-3. Erősítsd meg → erase/program/verify, a progress az OLED-en és a web WebSocketen is látszik.
+3. Erősítsd meg → erase/program/verify, a progress a kijelzőn és a web WebSocketen is látszik.
 
 ---
 
@@ -255,7 +273,7 @@ CONFIG_HTTPD_WS_SUPPORT=y         # web_ui /ws élő adat + progress
 
 ✅ **HW-igazolt** (mount → lista a stickről → forrásváltás), **Kconfig-gated, default KI**. Bekapcsolva (`CONFIG_USB_MSC_HOST_ENABLE=y`) a készülék az ESP32-S3 **native USB OTG host** lábain (GPIO19/20) fogad egy FAT32 pendrive-ot, és ha van bedugva stick, a firmware- és config-forrást **arról** olvassa.
 
-- **Mit ad**: a bedugott FAT32 stick a `/usb` alá mountolódik (`storage_usb`: `usb_host_msc` + `esp_vfs_fat`, hot-plug). Ha van stick, a firmware (`/usb/fw`) + config (`/usb/cfg`) lista (OLED + web) a **stickről** jön, a belső LFS-t elrejti; kihúzva visszaáll. A forrásválasztás a `storage_src` rétegen megy (prefix-alapú diszpécs LFS ↔ USB + a megfelelő lock).
+- **Mit ad**: a bedugott FAT32 stick a `/usb` alá mountolódik (`storage_usb`: `usb_host_msc` + `esp_vfs_fat`, hot-plug). Ha van stick, a firmware (`/usb/fw`) + config (`/usb/cfg`) lista (kijelző + web) a **stickről** jön, a belső LFS-t elrejti; kihúzva visszaáll. A forrásválasztás a `storage_src` rétegen megy (prefix-alapú diszpécs LFS ↔ USB + a megfelelő lock).
 - **Stick-elrendezés**: a gyökérben `fw/` (és opcionálisan `cfg/`) mappa kell — a firmware-ek a `fw/`, a configok a `cfg/` alatt.
 - **www és FTP**: szándékosan végig a **belső LFS**-en marad. A flashelendő forrásfájl a flash / WiFi-pause **ELŐTT** teljesen PSRAM-ba olvasódik, így a stick kihúzása flash közben nem töri meg a műveletet.
 

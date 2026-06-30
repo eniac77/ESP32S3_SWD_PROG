@@ -8,7 +8,7 @@ Ez a fájl a Claude Code (és más AI-asszisztensek) számára ad iránymutatás
 
 1. **LittleFS-ből** firmware-t (`.bin`) olvas és **SWD**-n (SWCLK/SWDIO) felprogramozza a csatlakoztatott **STM32** célt (családok: F0, F1, F2, F3, F4, F7, H7, H5, G0, G4, L0, L1, L4, L5, U0, U5, WB, WL, WBA, C0 — **80 DEV_ID** a teljes CubeProgrammer FlashLoader palettához igazítva). A flash-kód **CMSIS `.FLM`** blobokból fut a cél RAM-jában (RAM flash loader).
 2. **soros vonalon** (UART, sima 3.3 V) kommunikál a cél STM32 *futó alkalmazásával*: bináris **`.cfg`** fájlok fel-/letöltése, élő adat olvasása.
-3. helyileg kezelhető **gombos enkóder + SSD1306 OLED**-ről (fájlválasztás, cél-típus, %-os állapot).
+3. helyileg kezelhető **gombos enkóder + ILI9488 480×320 SPI TFT + GT911 kapacitív touch (LVGL)**-ről (fájlválasztás, cél-típus, %-os állapot). *(Az SSD1306 OLED-verzió a `main` ágon él tovább; ez a `feat/ili9488-lvgl` branch a TFT/touch változat.)*
 4. WiFi-n **webszerver UI**-t (REST + WebSocket) és **FTP-szervert** ad a LittleFS eléréséhez.
 
 **Modul:** ESP32-S3-**N16R8** (16 MB flash, 8 MB **octal** PSRAM). **Platform:** ESP-IDF.
@@ -21,13 +21,15 @@ Ez a fájl a Claude Code (és más AI-asszisztensek) számára ad iránymutatás
 
 A **teljes szoftveres váz kész és zöldre fordul** (esp32s3). Mind a 16 komponens implementálva, az end-to-end flash-út be van kötve **és HW-n igazolt (F030)**. A teljes spec/lábkiosztás/ütemterv a tervben: `reference/ESP32S3_SWD_PROG_Plan.md` — **implementáció előtt olvasd el**.
 
+🖥️ **Kijelző-váltás (ezen a `feat/ili9488-lvgl` branchen):** az SSD1306 OLED helyett **ILI9488 480×320 SPI TFT + GT911 touch + LVGL v9** (`display_lcd` komponens). A szoftveres port **kész és zöldre fordul** (D0–D3, commit `ea6888d`); a `display_oled` komponenst eltávolítottuk (D5). Hátra a **HW bring-up** (D4): valódi panel bekötése, orientáció/szín/SPI-frekvencia/GT911 hangolás. Port-terv: `reference/ILI9488_LVGL_port.md`. *(Az OLED-verzió a `main` ágon él tovább.)*
+
 **SWD-munka kritikus tudnivalók (HW-n megtanulva, részletek a mérföldkő-doksiban):**
 - A flash/detect idejére a **WiFi rádiót le KELL állítani** (`net_wifi_radio_pause`) — különben a rádió zaja glitch-eli a bit-bang SWD-t (re-sync 292 vs 2).
 - SWDIO turnaround tri-state: `GPIO.func_out_sel_cfg[SWDIO].oen_sel=1` kell (dedic_gpio + GPIO_ENABLE).
 - A read-mintavétel a **low fázisban** van; az írás után **trailing idle** kell; protokoll-hibára **`dp_resync` + retry** (tétlen szünettel old a beragadt vonal).
-- Sebesség: bring-up 300 kHz, adatfázis `freq=0`; a flash alatt **csendes log** (INFO) és **OLED progress-throttle** (250 ms) — utóbbi volt a legnagyobb rejtett lassító.
+- Sebesség: bring-up 300 kHz, adatfázis `freq=0`; a flash alatt **csendes log** (INFO) és **kijelző progress-throttle** (250 ms) — utóbbi volt a legnagyobb rejtett lassító.
 
-Kész és fordul: `swd_phy`, `adiv5`, `cortexm_debug`, `flm_runner`, `flm_blobs` (80 algo), `target_db` (80 STM32 DEV_ID), `prog_session` (end-to-end), `storage_lfs` (+ `storage_src` forrás-feloldó), `storage_usb` (USB MSC, Kconfig-gated), `display_oled`, `input_enc`, `ui`, `target_serial`, `target_state`, `net_wifi`, `web_ui`, `ftp_srv`. Tool: `tools/flm_extract.py`.
+Kész és fordul: `swd_phy`, `adiv5`, `cortexm_debug`, `flm_runner`, `flm_blobs` (80 algo), `target_db` (80 STM32 DEV_ID), `prog_session` (end-to-end), `storage_lfs` (+ `storage_src` forrás-feloldó), `storage_usb` (USB MSC, Kconfig-gated), `display_lcd` (ILI9488+GT911+LVGL), `input_enc`, `ui`, `target_serial`, `target_state`, `net_wifi`, `web_ui`, `ftp_srv`. Tool: `tools/flm_extract.py`.
 
 **USB pendrive forrás (✅ HW-IGAZOLT, Kconfig-gated, default KI):** valódi sticken működik (mount → lista a stickről → forrásváltás). `CONFIG_USB_MSC_HOST_ENABLE=y` esetén a bedugott FAT32 stick a `/usb` alá mountolódik (`storage_usb`: usb_host_msc + esp_vfs_fat, hot-plug), és ha van stick, a firmware (`/usb/fw`) + config (`/usb/cfg`) lista (OLED + web) a **stickről** jön — a belsőt elrejti; kihúzva visszaáll. A stick gyökerében `fw/` (és `cfg/`) mappa kell. A forrásválasztás a `storage_src` rétegen megy (prefix-alapú diszpécs LFS↔USB + a megfelelő lock). A **www** és az **FTP** szándékosan végig a belső LFS-en marad; a forrásfájl a flash/WiFi-pause ELŐTT teljesen PSRAM-ba olvasódik (kihúzás flash közben nem tör). **Mount-minta (FONTOS):** a MSC connect-callbackből NEM hívható `msc_host_install_device` (deadlock — a driver háttér-taszkjában fut); a callback csak sorba tesz, külön `usb_msc` task mountol. **Pad-ütközés:** OTG host = GPIO19/20 native USB → a másodlagos USB-Serial/JTAG konzolt KI kell kapcsolni (`CONFIG_ESP_CONSOLE_SECONDARY_NONE=y`), konzol UART0-n, flash/monitor külső USB-UART-ról (GPIO43/44); fordítási `#error` véd, ha mégis bent maradna. Bekapcsoláshoz: `sdkconfig.usb` fragment. Default kikapcsolva = nulla viselkedésváltozás (natív USB flash/monitor megmarad). Részletek: a terv 18. szekciója.
 
@@ -76,7 +78,7 @@ components/
   target_state/   # közös élő-adat modell (UI + WS forrása)
   storage_lfs/    # LittleFS mount + fájl-API + lock
   input_enc/      # enkóder ISR/PCNT + gomb → eseménysor
-  display_oled/   # SSD1306 driver + UI képernyők
+  display_lcd/    # ILI9488 480×320 SPI TFT + GT911 touch + LVGL v9 (port-taszk, UI képernyők)
   net_wifi/       # STA/AP, provisioning, mDNS
   web_ui/         # esp_http_server: REST + WebSocket
   ftp_srv/        # FTP a LittleFS fölött
@@ -94,7 +96,9 @@ flm_packs/             # vendored .FLM források (ST DFP)
 
 **Szabadon kiosztható:** GPIO1–18, 21, 38–42, 47, 48 (ebből az AVR ISP már foglal néhányat — lásd lent).
 
-**Javasolt kiosztás:** SWCLK=GPIO4, SWDIO=GPIO5, nRST=GPIO6 (OD+pullup — **fenntartva az ESP-n, a célhoz NEM kötjük**), UART TX=GPIO17, UART RX=GPIO18, OLED SDA=GPIO8, OLED SCL=GPIO9, Enkóder A=GPIO10, B=GPIO11, SW=GPIO12, Vref ADC=GPIO1, táp EN=GPIO13, LED=GPIO14.
+**Javasolt kiosztás (ezen a branchen):** SWCLK=GPIO4, SWDIO=GPIO5, nRST=GPIO6 (OD+pullup — **fenntartva az ESP-n, a célhoz NEM kötjük**), UART TX=GPIO17, UART RX=GPIO18, Enkóder A=GPIO10, B=GPIO11, SW=GPIO12, Vref ADC=GPIO1, táp EN=GPIO13, LED=GPIO14.
+
+**Kijelző — ILI9488 480×320 SPI TFT:** SCLK=GPIO9, MOSI=GPIO8, CS=GPIO38, DC=GPIO39, RST=GPIO40, BL(háttérvilágítás)=GPIO41. **GT911 kapacitív touch (I2C):** SDA=GPIO47, SCL=GPIO48, INT=GPIO42, RST=GPIO2. *(Az SSD1306 OLED I2C bekötés — SDA=8/SCL=9 — a `main` ágon érvényes; itt a TFT/touch váltja.)*
 
 **AVR ISP (ATtiny13 stb. — külön interfész, `avr_isp` komponens):** SCK=GPIO15, MOSI=GPIO16, MISO=GPIO7, RESET=GPIO21 (aktív-alacsony, programozás alatt lehúzva). Bit-bang SPI ISP; forrás `.hex` (Intel HEX) vagy `.bin` a LittleFS-ből. Lábak Kconfig-gal állíthatók (`CONFIG_AVR_ISP_*_GPIO`).
 
@@ -161,4 +165,4 @@ idf.py add-dependency "joltwallet/littlefs"
 
 Teljes részletek: [reference/ESP32S3_SWD_PROG_Plan.md](reference/ESP32S3_SWD_PROG_Plan.md).
 
-**Kijelző/enkóder port (B1-hez):** [reference/NX80_display_port.md](reference/NX80_display_port.md) — az NX80TESTER_AVR projektből átemelhető SSD1306/SH1106 driver, fontok (5×7 ASCII + Swis721 19×24 szám-font), enkóder/gomb logika, AVR→ESP-IDF megfeleltetéssel. Fontos: a referencia panel **SH1106**, 2 oszlop offset, 180° fordítva.
+**Kijelző/enkóder port:** ezen a `feat/ili9488-lvgl` branchen a kijelző **ILI9488 480×320 SPI + GT911 touch + LVGL v9** — a részletes port-terv: [reference/ILI9488_LVGL_port.md](reference/ILI9488_LVGL_port.md). A branch az OLED `main`-ből ágazik. *(Történeti referencia az eredeti OLED-porthoz — SSD1306/SH1106 driver, 5×7 ASCII + Swis721 szám-font, enkóder/gomb logika az NX80TESTER_AVR projektből: [reference/NX80_display_port.md](reference/NX80_display_port.md). Ez a `main` ág OLED-változatára vonatkozik.)*
