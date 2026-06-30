@@ -57,6 +57,14 @@ lv_group_t *display_lcd_group(void);
    Tipikus használat (D3): a cb lépjen vissza az előző képernyőre. */
 void display_lcd_set_back_cb(void (*cb)(void));
 
+/* A háttérvilágítás (BL, GPIO41) fényerejének állítása százalékban (0..100).
+   A BL LEDC PWM-en megy (alap 50%); ez a setter az LEDC duty-t állítja
+   (clamp 0..100). Hasznos a UI-ból / későbbi beállítás-képernyőről. Ha a
+   display_lcd_init() még nem futott le (vagy hibára futott), a hívás no-op.
+   Megjegyzés: aktív-magas BL feltételezve — ha a HW fordított, a fényerő
+   iránya megfordul (a duty-számítást kell invertálni a .c-ben). */
+void display_lcd_set_brightness(uint8_t pct);
+
 #ifdef __cplusplus
 }
 #endif

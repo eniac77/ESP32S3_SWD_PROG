@@ -11,7 +11,7 @@
  *   1) SPI2 (FSPI) busz   — MOSI=8, SCLK=9, max_transfer a draw-bufferhez méretezve
  *   2) esp_lcd panel IO   — CS=38, DC=39, SPI @ 40 MHz (biztonságos indulás)
  *   3) ILI9488 panel      — RST=40, bits_per_pixel=18 (RGB666; a driver konvertál)
- *   4) BL (háttérvilágítás)— GPIO41 kimenet, bekapcsolva
+ *   4) BL (háttérvilágítás)— GPIO41, LEDC PWM, alap 50%
  *   5) LVGL-port          — lvgl_port_init + add_disp (internal DMA draw-buffer)
  *   6) GT911 touch        — külön I2C master bus (SDA=47, SCL=48), INT=42, RST=2
  *   7) Touch-indev        — lvgl_port_add_touch (pointer)
@@ -27,6 +27,7 @@
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "driver/i2c_master.h"
+#include "driver/ledc.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_vendor.h"
@@ -52,6 +53,18 @@ static const char *TAG = "display_lcd";
 #define LCD_GPIO_BL         41
 /* SPI órajel. 40 MHz biztonságos indulás; HW-mérés után feljebb (max ~80 MHz). */
 #define LCD_PCLK_HZ         (40 * 1000 * 1000)
+
+/* Háttérvilágítás (BL) — LEDC PWM. Alap kitöltés százalékban (0..100); ebből
+   számoljuk a duty-t (lásd lcd_backlight_pwm_init), hogy később könnyű legyen
+   állítani. A projektben nincs más LEDC-használó (grep: ledc_/LEDC üres a fán
+   kívül), így a BL a LEDC_TIMER_0 / LEDC_CHANNEL_0-t kapja — nincs ütközés. */
+#define LCD_BL_DEFAULT_PCT  50
+#define LCD_BL_LEDC_TIMER   LEDC_TIMER_0
+#define LCD_BL_LEDC_CHANNEL LEDC_CHANNEL_0
+#define LCD_BL_LEDC_MODE    LEDC_LOW_SPEED_MODE
+#define LCD_BL_LEDC_RES     LEDC_TIMER_10_BIT      /* 0..1023 */
+#define LCD_BL_LEDC_FREQ_HZ 5000                   /* 5 kHz — nem vibrál */
+#define LCD_BL_DUTY_MAX     ((1 << 10) - 1)        /* 1023 (10-bit) */
 
 /* Panel felbontás (480x320 fekvő). */
 #define LCD_H_RES           480
@@ -158,23 +171,56 @@ static void enc_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 }
 
 /* ------------------------------------------------------------------ */
-/* Háttérvilágítás (BL) — egyszerű GPIO ki/be                          */
+/* Háttérvilágítás (BL) — LEDC PWM (alap 50%)                          */
 /* ------------------------------------------------------------------ */
-static esp_err_t lcd_backlight_init(bool on)
+/* Akkor true, ha a LEDC timer+channel már fel van húzva. A set_brightness
+   ez alapján no-op marad, ha az init még nem futott le. */
+static bool s_bl_ready = false;
+
+/* pct (0..100) -> 10-bites LEDC duty. */
+static inline uint32_t lcd_bl_pct_to_duty(uint8_t pct)
 {
-    gpio_config_t bl_cfg = {
-        .pin_bit_mask = 1ULL << LCD_GPIO_BL,
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
+    if (pct > 100) {
+        pct = 100;
+    }
+    return (uint32_t)pct * LCD_BL_DUTY_MAX / 100;
+}
+
+/* LEDC PWM bring-up a BL-en (GPIO41). Aktív-magas BL feltételezve (HW-n
+   hangolandó, ha fordított: akkor a duty-t invertálni kell). A kezdő kitöltés
+   az init_pct. */
+static esp_err_t lcd_backlight_pwm_init(uint8_t init_pct)
+{
+    ledc_timer_config_t timer_cfg = {
+        .speed_mode      = LCD_BL_LEDC_MODE,
+        .timer_num       = LCD_BL_LEDC_TIMER,
+        .duty_resolution = LCD_BL_LEDC_RES,
+        .freq_hz         = LCD_BL_LEDC_FREQ_HZ,
+        .clk_cfg         = LEDC_AUTO_CLK,
     };
-    esp_err_t err = gpio_config(&bl_cfg);
+    esp_err_t err = ledc_timer_config(&timer_cfg);
     if (err != ESP_OK) {
+        ESP_LOGE(TAG, "ledc_timer_config -> %s", esp_err_to_name(err));
         return err;
     }
-    /* Aktív-magas BL feltételezve (HW-n hangolandó, ha fordított). */
-    return gpio_set_level(LCD_GPIO_BL, on ? 1 : 0);
+
+    ledc_channel_config_t ch_cfg = {
+        .gpio_num   = LCD_GPIO_BL,
+        .speed_mode = LCD_BL_LEDC_MODE,
+        .channel    = LCD_BL_LEDC_CHANNEL,
+        .timer_sel  = LCD_BL_LEDC_TIMER,
+        .intr_type  = LEDC_INTR_DISABLE,
+        .duty       = lcd_bl_pct_to_duty(init_pct),  /* aktív-magas */
+        .hpoint     = 0,
+    };
+    err = ledc_channel_config(&ch_cfg);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "ledc_channel_config -> %s", esp_err_to_name(err));
+        return err;
+    }
+
+    s_bl_ready = true;
+    return ESP_OK;
 }
 
 /* ------------------------------------------------------------------ */
@@ -253,10 +299,10 @@ static esp_err_t panel_bringup(void)
     /* Bekapcsolás (egyes esp_lcd verziók: alapból ki). */
     esp_lcd_panel_disp_on_off(s_panel_handle, true);
 
-    /* 4) Háttérvilágítás be. */
-    err = lcd_backlight_init(true);
+    /* 4) Háttérvilágítás be — LEDC PWM, alap 50% kitöltés. */
+    err = lcd_backlight_pwm_init(LCD_BL_DEFAULT_PCT);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "backlight_init -> %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "backlight_pwm_init -> %s", esp_err_to_name(err));
         return err;
     }
 
@@ -459,4 +505,18 @@ lv_group_t *display_lcd_group(void)
 void display_lcd_set_back_cb(void (*cb)(void))
 {
     s_back_cb = cb;
+}
+
+void display_lcd_set_brightness(uint8_t pct)
+{
+    /* Ha a BL-PWM még nem lett felhúzva (init előtt / hibás init), no-op. */
+    if (!s_bl_ready) {
+        return;
+    }
+    if (pct > 100) {
+        pct = 100;  /* clamp 0..100 */
+    }
+    uint32_t duty = lcd_bl_pct_to_duty(pct);
+    ledc_set_duty(LCD_BL_LEDC_MODE, LCD_BL_LEDC_CHANNEL, duty);
+    ledc_update_duty(LCD_BL_LEDC_MODE, LCD_BL_LEDC_CHANNEL);
 }
