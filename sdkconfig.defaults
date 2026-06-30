@@ -24,3 +24,8 @@ CONFIG_HTTPD_WS_SUPPORT=y
 # VERBOSE-ra emelve futásidőben a main-ben). Teljes UART-konzol napló.
 CONFIG_LOG_DEFAULT_LEVEL_DEBUG=y
 CONFIG_LOG_MAXIMUM_LEVEL_VERBOSE=y
+
+# LVGL (display_lcd / ILI9488): 16-bit színmélység (RGB565). Az esp_lcd_ili9488
+# driver RGB565->RGB666 konverziót végez, ezért ez KÖTELEZŐ. (Az LVGL-Kconfig
+# default amúgy is 16, de itt explicit rögzítjük, hogy ne csússzon el.)
+CONFIG_LV_COLOR_DEPTH_16=y

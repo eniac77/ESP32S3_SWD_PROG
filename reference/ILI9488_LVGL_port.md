@@ -74,9 +74,16 @@ Vref 1, EN 13, LED 14, USB-native 19/20, PSRAM/flash 26–37, strapping 0/3/45/4
 dependencies:
   lvgl/lvgl: "^9.2.0"                      # vagy ^8.4 ha v8-at akarunk
   espressif/esp_lvgl_port: "^2.4.0"        # LVGL <-> esp_lcd + touch + encoder integráció
-  espressif/esp_lcd_ili9488: "^1.0.0"      # ILI9488 panel (RGB666 konverzióval!)
+  atanisoft/esp_lcd_ili9488: "^1.1.0"      # ILI9488 panel (RGB666 konverzióval!) — FIGYELEM: atanisoft/, NEM espressif/
   espressif/esp_lcd_touch_gt911: "^1.1.0"  # GT911 kapacitív touch
 ```
+
+> **D0/D1/D2 javítás (feloldott verziók):** az ILI9488 panel-driver a Component
+> Registry-ben **`atanisoft/esp_lcd_ili9488`** néven van (a fenti `espressif/...`
+> tévedés volt). A ténylegesen feloldott verziók: **lvgl 9.5 (v9 API!)**,
+> **esp_lvgl_port 2.8**, **atanisoft/esp_lcd_ili9488 1.1.1**,
+> **espressif/esp_lcd_touch_gt911 1.2.0** (+ esp_lcd_touch). A CMake
+> `REQUIRES`-ben az ILI9488 neve namespace nélkül: `esp_lcd_ili9488`.
 
 **Miért `esp_lvgl_port`:** a hivatalos komponens egyben kezeli az LVGL tick-et, a render-taszkot,
 az esp_lcd flush-callbacket, a touch- és **encoder-indevet** — drasztikusan kevesebb glue-kód, és a

@@ -8,4 +8,6 @@ idf_component_register(
         lvgl
         esp_lcd_ili9488
         esp_lcd_touch_gt911
+        esp_lcd_touch
+        input_enc
 )
