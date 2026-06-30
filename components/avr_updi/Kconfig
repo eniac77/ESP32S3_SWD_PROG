@@ -1,0 +1,24 @@
+menu "AVR UPDI programozo"
+    config AVR_UPDI_ENABLE
+        bool "UPDI interfesz engedelyezese"
+        default n
+        help
+            Modern tinyAVR/megaAVR 0/1/2-series (es kesobb AVR Dx) programozasa
+            UPDI single-wire interfeszen. Default KI: a main csak akkor hozza fel
+            (avr_updi_init), ha be van kapcsolva, igy nincs UART2-foglalas felesleg.
+            HW-n MEG NEM IGAZOLT.
+
+    config AVR_UPDI_GPIO
+        int "UPDI GPIO (single-wire)"
+        default 7
+        help
+            A UPDI 1-vezetekes vonala. Default a meglevo programozo-header MISO
+            labja (GPIO7). Open-drain + ~4,7k soros ellenallas ajanlott a celhez.
+
+    config AVR_UPDI_BAUD
+        int "UPDI baud"
+        default 115200
+        help
+            UPDI UART sebesseg (8E2). A UPDI alap-oszcillatornal 115200 biztonsagos;
+            feljebb a cel UPDICLK-jatol fugg.
+endmenu

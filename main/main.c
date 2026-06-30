@@ -32,6 +32,9 @@
 #include "flm_runner.h"
 #include "flm_blobs.h"
 #include "avr_isp.h"
+#if CONFIG_AVR_UPDI_ENABLE
+#include "avr_updi.h"
+#endif
 #include "ui.h"
 
 static const char *TAG = "main";
@@ -150,6 +153,9 @@ void app_main(void)
     TRY(target_db_init());
     TRY(prog_session_init());
     TRY(avr_isp_init());
+#if CONFIG_AVR_UPDI_ENABLE
+    TRY(avr_updi_init());           /* modern AVR (tinyAVR/megaAVR) — UPDI single-wire */
+#endif
     TRY(target_serial_init());
 
     /* Hálózat / távoli elérés */
