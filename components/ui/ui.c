@@ -1,19 +1,34 @@
 /*
- * ui.c — Helyi UI állapotgép (ui_task) az OLED + enkóder fölött.
+ * ui.c — Helyi UI az ILI9488 480x320 + GT911 touch + enkóder fölött, LVGL v9-re.
  *
- * Terv 15. szekció: a taszk az input_enc eseménysorán blokkol
- * (input_enc_get portMAX_DELAY), és CSAK eseményre/változásra renderel
- * (terv 15.1). Az állapotot statikus változókban tartjuk; minden
- * eseménynél frissítjük, majd újrarajzolunk (clear -> rajz -> flush).
+ * A korábbi SSD1306/OLED-implementáció (kézi framebuffer-rajz, input_enc queue
+ * közvetlen olvasása) LEVÁLTVA. Mostantól:
+ *   - a kijelzőt/touch/enkódert a `display_lcd` komponens hozza fel (LVGL-port
+ *     + render-taszk + indevek). A ui.c CSAK LVGL-widgeteket épít.
+ *   - a bevitelt az LVGL kezeli (touch pointer-indev + enkóder encoder-indev);
+ *     a ui.c NEM olvassa az input_enc queue-t (annak EGYETLEN fogyasztója a
+ *     display_lcd enc_read_cb-je).
+ *   - a "vissza" (BTN_LONG) a display_lcd_set_back_cb()-en jön (port-taszk
+ *     kontextus -> a cb-ben KÖZVETLENÜL hívunk lv_*()-t, lock NÉLKÜL).
  *
- * Képernyő-flow (terv 15.x):
- *   Idle/status  --BTN_SHORT-->  Főmenü
- *   Főmenü       --BTN_SHORT-->  almenü (Program fw / placeholderek)
- *                --BTN_LONG -->  Idle
- *   Program fw   : /lfs/fw lista; BTN_SHORT -> "Selected" megerősítő
- *                --BTN_LONG -->  Főmenü
+ * Képernyő-flow (a korábbi OLED-állapotgép funkcionálisan megőrizve):
+ *   IDLE/status  --(klikk)-->  Főmenü
+ *   Főmenü       --(0)-->  FW-lista --(klikk)--> FW-megerősítő --(OK)--> flash-progress
+ *                --(1)-->  Cél-info (SWD detekt) eredmény
+ *                --(2)-->  AVR detekt -> AVR-lista -> AVR-megerősítő -> AVR-flash
+ *                --(3..5)-> placeholder ("hamarosan")
+ *   Bárhol BTN_LONG (vagy a touch "Vissza" gomb) -> egy szinttel vissza.
  *
- * UTF-8, magyar kommentek.
+ * KRITIKUS — hosszú szinkron műveletek (flash/detect/AVR):
+ *   ezek MÁSODPERCEKIG tartanak és NEM futhatnak az LVGL port-taszkon (befagyna
+ *   a render) és nem is egy LVGL event-cb-ben. Ezért egy DEDIKÁLT worker-taszk
+ *   (ui_worker) végzi: az LVGL gomb-esemény csak egy job-ot tesz a worker
+ *   queue-jába, a worker hívja a prog_session / avr_isp hosszú hívásait, a progress-
+ *   callback pedig `lvgl_port_lock` alatt frissíti az lv_bar-t/labeleket.
+ *   A render a port-taszkon megy -> a flash alatt az UI reszponzív marad.
+ *
+ * UTF-8, magyar kommentek.  HW-n MÉG NEM IGAZOLT (D4) — a méret/elrendezés
+ * néhány pontját "HW-n hangolandó" megjegyzés jelzi.
  */
 #include "ui.h"
 
@@ -22,160 +37,171 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_timer.h"          /* progress-rajz throttle (OLED-flush ~25 ms) */
+#include "freertos/queue.h"
+#include "esp_timer.h"          /* progress-throttle (LVGL-frissítés ritkítása) */
 
-#include "display_oled.h"
-#include "input_enc.h"
+#include "lvgl.h"
+#include "esp_lvgl_port.h"
+#include "display_lcd.h"        /* display_lcd_group / display_lcd_set_back_cb */
+
+#include "input_enc.h"          /* enc_event_t típusok (a flow-hoz; a queue-t a LCD olvassa) */
 #include "storage_lfs.h"
 #include "storage_src.h"
-#include "prog_session.h"   /* SWD flash orchestráció (prog_session_flash_file) */
-#include "avr_isp.h"        /* AVR ISP programozó (ATtiny13 stb.) — párhuzamos flow */
+#include "prog_session.h"       /* SWD flash orchestráció */
+#include "avr_isp.h"            /* AVR ISP programozó */
+#include "target_state.h"       /* idle-állapot adatforrás */
 
 #include "esp_log.h"
 
 static const char *TAG = "ui";
 
 /* ---------------------------------------------------------------------- */
-/* Layout-konstansok (5x7 font: scale*6 px/karakter, scale*8 px magas)     */
-/* NX80-stílus: nagy (scale 2) lista, keretes kijelölés.                   */
-/* ---------------------------------------------------------------------- */
-#define UI_HDR_H       11          /* fejléc-sáv magassága px-ben (scale 1)*/
-
-/* --- NX80-stílusú lista-megjelenés (hangolható) --- */
-#define UI_LIST_SCALE  2           /* listaelemek font-skálája (~14px magas)*/
-#define UI_VISIBLE     3           /* egyszerre látható listaelemek száma  */
-#define UI_ROW_H       16          /* sor-osztás px-ben (NX80: 16px)       */
-#define UI_SEL_FRAME   1           /* kijelölés-stílus: 1 = keret, 0 = inverz */
-#define UI_LIST_MAXCH  10          /* max karakter egy listasorban (scale 2)*/
-
-/* A 3 látható listasor szöveg-y koordinátái (NX80 screen_menu mintára).
-   A kijelölés-keret a sor-y - 1-től UI_ROW_H magasan rajzolódik. */
-static const uint8_t UI_ROW_Y[UI_VISIBLE] = { 14, 31, 48 };
-
-/* ---------------------------------------------------------------------- */
-/* Fájllista-puffer (statikus; max 32 név × 24 char) — terv 15.x          */
+/* Fájllista-puffer (statikus; max 32 név × 24 char) — a korábbi logikából */
 /* ---------------------------------------------------------------------- */
 #define FW_MAX_FILES   32
 #define FW_NAME_LEN    24
 
 static char    s_fw_names[FW_MAX_FILES][FW_NAME_LEN];
-static uint8_t s_fw_count;          /* érvényes nevek száma a pufferben   */
+static int     s_fw_count;          /* érvényes nevek száma a pufferben     */
+static char    s_sel_name[FW_NAME_LEN]; /* kiválasztott fw/avr fájl neve    */
 
 /* ---------------------------------------------------------------------- */
-/* Állapotgép — aktuális képernyő + navigációs állapot (statikus)         */
+/* Képernyő-azonosítók (a korábbi állapotgép logikája megőrizve)          */
 /* ---------------------------------------------------------------------- */
 typedef enum {
-    SCR_IDLE,       /* állapot/status képernyő          */
-    SCR_MENU,       /* főmenü                           */
-    SCR_FWLIST,     /* /lfs/fw fájllista                */
-    SCR_FWSEL,      /* kiválasztott fw megerősítő       */
-    SCR_AVRLIST,    /* AVR ISP: /lfs/fw fájllista       */
-    SCR_AVRSEL,     /* AVR ISP: kiválasztott fájl megerősítő */
-    SCR_PLACEHOLDER /* "(hamarosan)" almenük            */
+    SCR_IDLE,        /* állapot/status                          */
+    SCR_MENU,        /* főmenü                                  */
+    SCR_FWLIST,      /* SWD: firmware fájllista                 */
+    SCR_FWSEL,       /* SWD: kiválasztott fw megerősítő         */
+    SCR_PROGRESS,    /* SWD: flash progress                     */
+    SCR_RESULT,      /* általános eredmény-/info-képernyő       */
+    SCR_AVRLIST,     /* AVR: fájllista                          */
+    SCR_AVRSEL,      /* AVR: kiválasztott fájl megerősítő       */
+    SCR_AVRPROG,     /* AVR: flash progress                     */
+    SCR_PLACEHOLDER, /* "(hamarosan)" almenük                   */
 } ui_screen_t;
 
-static ui_screen_t s_screen   = SCR_IDLE;
-static int         s_sel      = 0;   /* kiválasztott elem indexe          */
-static int         s_scroll   = 0;   /* scroll-offset (első látható elem) */
-static char        s_sel_name[FW_NAME_LEN]; /* kiválasztott fw neve       */
-static const char *s_ph_title = "";  /* aktuális placeholder címe         */
+static ui_screen_t s_screen = SCR_IDLE;
 
-/* Főmenü elemei (terv 15.2). A feliratok rövidítve, hogy scale 2-nél
-   elférjenek (≤10 karakter); a SORREND/INDEXEK változatlanok, mert a
-   ui_handle index-alapú elágazása ezekre épül (0=Program fw, 1=Cel info,
-   2=AVR ISP, 3..5=placeholder). */
+/* Főmenü elemei — a SORREND/INDEXEK megőrizve (0=Program fw, 1=Cel info,
+   2=AVR ISP, 3..5=placeholder), mert a click-handler index-alapú. */
 static const char *const MENU_ITEMS[] = {
-    "Program fw",   /* 0 — "Program firmware" rövidítve */
-    "Cel info",     /* 1 — "Cel info (SWD)"             */
-    "AVR ISP",      /* 2 — "AVR ISP (ATtiny)"           */
-    "Cel konfig",   /* 3 (10 char, fér)                 */
-    "Elo adat",     /* 4                                */
-    "Beallitas",    /* 5 — "Beallitasok" rövidítve      */
+    "Program firmware",   /* 0 */
+    "Cel info (SWD)",     /* 1 */
+    "AVR ISP (ATtiny)",   /* 2 */
+    "Cel konfig",         /* 3 — placeholder */
+    "Elo adat",           /* 4 — placeholder */
+    "Beallitasok",        /* 5 — placeholder */
 };
 #define MENU_COUNT ((int)(sizeof(MENU_ITEMS) / sizeof(MENU_ITEMS[0])))
 
 /* ---------------------------------------------------------------------- */
-/* Rajz-segédek                                                           */
+/* Aktív LVGL screen-objektumok + a progress-widgetek referenciái         */
 /* ---------------------------------------------------------------------- */
+/* A jelenleg megjelenített képernyő gyökér-objektuma. Váltáskor töröljük. */
+static lv_obj_t *s_root = NULL;
 
-/* Inverz fejléc-sáv: kitöltött téglalap + sötét (on=false) szöveg rajta. */
-static void ui_draw_header(const char *title)
-{
-    display_oled_fill_rect(0, 0, OLED_W, UI_HDR_H, true);
-    /* Cím balra igazítva, 2px margóval, scale 1, sötét (on=false) pixelekkel. */
-    for (int i = 0; title[i] && i < 21; i++) {
-        display_oled_char(2 + i * 6, 2, title[i], 1, false);
-    }
-}
-
-/* Szöveg-csonkolás egy fix karakterszámra (helyben, kis lokális pufferbe).
-   A scale 2-es listához (max ~10 char/128px) kell, hogy ne lógjon ki a sor. */
-static const char *ui_trunc(const char *src, char *buf, size_t bufsz, int maxch)
-{
-    if (maxch > (int)bufsz - 1) maxch = (int)bufsz - 1;
-    int i = 0;
-    for (; src[i] && i < maxch; i++) buf[i] = src[i];
-    buf[i] = '\0';
-    return buf;
-}
-
-/* Általános görgetett listarajzoló — NX80 screen_menu stílus:
- *   - fejléc (inverz sáv, scale 1) MARAD a tetején (kontextus),
- *   - legfeljebb UI_VISIBLE (3) elem scale 2-vel, x=2, sor-y UI_ROW_Y-ból,
- *   - a kiválasztott sor KERETTEL kiemelve (display_oled_rect, nem inverz).
- * A 'get_item' callback adja vissza az i. elem szövegét. */
-typedef const char *(*ui_item_getter)(int idx);
-
-static void ui_draw_list(const char *title, int count, int sel, int scroll,
-                         ui_item_getter get_item, const char *empty_msg)
-{
-    display_oled_clear();
-    ui_draw_header(title);
-
-    if (count <= 0) {
-        /* Üres lista: nagy (scale 2) középre igazított üzenet. */
-        display_oled_text_center(28, empty_msg, UI_LIST_SCALE);
-        display_oled_flush();
-        return;
-    }
-
-    for (int row = 0; row < UI_VISIBLE; row++) {
-        int idx = scroll + row;
-        if (idx >= count) break;
-
-        uint8_t y = UI_ROW_Y[row];
-        char tbuf[UI_LIST_MAXCH + 1];
-        const char *txt = ui_trunc(get_item(idx), tbuf, sizeof(tbuf), UI_LIST_MAXCH);
-
-        /* A szöveg minden sornál sima (nem inverz) scale 2. */
-        display_oled_text(2, y, txt, UI_LIST_SCALE);
-
-        if (idx == sel) {
-#if UI_SEL_FRAME
-            /* Kijelölés: 1px keret a sor körül (NX80 screen_menu). */
-            display_oled_rect(0, (uint8_t)(y - 1), OLED_W, UI_ROW_H);
-#else
-            /* (Opcionális) inverz kijelölés-stílus, ha UI_SEL_FRAME=0. */
-            display_oled_fill_rect(0, (uint8_t)(y - 1), OLED_W, UI_ROW_H, true);
-            for (int i = 0; txt[i]; i++)
-                display_oled_char(2 + i * (UI_LIST_SCALE * 6), y, txt[i],
-                                  UI_LIST_SCALE, false);
-#endif
-        }
-    }
-
-    display_oled_flush();
-}
-
-/* Item-getterek a két listához. */
-static const char *menu_item(int idx)   { return MENU_ITEMS[idx]; }
-static const char *fw_item(int idx)     { return s_fw_names[idx]; }
+/* Progress-képernyő widgetek (SWD és AVR közös) — a worker frissíti lock alatt. */
+static lv_obj_t *s_prog_phase = NULL;   /* fázis-címke      */
+static lv_obj_t *s_prog_name  = NULL;   /* cél/fájl neve    */
+static lv_obj_t *s_prog_bar   = NULL;   /* lv_bar           */
+static lv_obj_t *s_prog_pct   = NULL;   /* százalék-label   */
 
 /* ---------------------------------------------------------------------- */
-/* Fájllista-gyűjtés a /lfs/fw könyvtárból (lock alatt) — terv 15.x       */
+/* Worker-taszk — hosszú szinkron műveletek (flash/detect) a port-taszkon  */
+/* kívül. Az LVGL event-cb-k csak job-ot tesznek a queue-ba.              */
 /* ---------------------------------------------------------------------- */
+typedef enum {
+    JOB_FLASH_SWD,   /* SWD flash a kiválasztott fw-vel        */
+    JOB_DETECT_SWD,  /* SWD cél-detektálás                     */
+    JOB_DETECT_AVR,  /* AVR signature detektálás               */
+    JOB_FLASH_AVR,   /* AVR flash a kiválasztott fájllal       */
+} ui_job_t;
 
-/* A listázó callback: csak közönséges fájlokat veszünk fel a pufferbe. */
+static QueueHandle_t s_job_q = NULL;
+
+/* Előre-deklarációk (a build-screen függvények egymásra hivatkoznak). */
+static void ui_show_idle(void);
+static void ui_show_menu(void);
+static void ui_show_fwlist(bool avr);
+static void ui_show_progress(bool avr);
+static void ui_show_result(const char *title, const char *line1,
+                           const char *line2, bool ok);
+static void post_job(ui_job_t job);
+static void ui_confirm_ok_event(lv_event_t *e);
+
+/* ====================================================================== */
+/* Közös stílus-segédek                                                   */
+/* ====================================================================== */
+
+/* Fejléc-sáv egy képernyő tetején: cím-label sötét háttérrel.
+   480px széles; a font a default Montserrat 14 (más font nincs befordítva). */
+static lv_obj_t *make_header(lv_obj_t *parent, const char *title)
+{
+    lv_obj_t *bar = lv_obj_create(parent);
+    lv_obj_set_size(bar, LV_PCT(100), 40);             /* HW-n hangolandó magasság */
+    lv_obj_align(bar, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_radius(bar, 0, 0);
+    lv_obj_set_style_pad_all(bar, 6, 0);
+    lv_obj_set_style_border_width(bar, 0, 0);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(0x1565C0), 0);  /* kék fejléc */
+    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *lbl = lv_label_create(bar);
+    lv_label_set_text(lbl, title);
+    lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
+    lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 0, 0);
+    return bar;
+}
+
+/* Új teljes-képernyős gyökér-objektum: az előzőt törli, friss konténert ad.
+   A konténer kitölti a kijelzőt, sötét háttérrel, függőleges flex-elrendezéssel
+   a fejléc alatt. A hívó a fejléc UTÁN adja a tartalmat. */
+static lv_obj_t *new_screen_root(void)
+{
+    /* A korábbi képernyő widgetjeit (és így a hozzájuk tartozó group-tagságot)
+       eldobjuk -> nincs lógó fókuszálható elem. */
+    if (s_root) {
+        lv_obj_del(s_root);
+        s_root = NULL;
+    }
+    /* A progress-widget pointerek a törölt fán voltak -> nullázzuk. */
+    s_prog_phase = s_prog_name = s_prog_bar = s_prog_pct = NULL;
+
+    lv_obj_t *scr = lv_screen_active();
+    lv_obj_t *root = lv_obj_create(scr);
+    lv_obj_set_size(root, LV_PCT(100), LV_PCT(100));
+    lv_obj_align(root, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_set_style_radius(root, 0, 0);
+    lv_obj_set_style_border_width(root, 0, 0);
+    lv_obj_set_style_pad_all(root, 0, 0);
+    lv_obj_set_style_bg_color(root, lv_color_hex(0x101418), 0);
+    lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+    s_root = root;
+    return root;
+}
+
+/* "Vissza" gomb a képernyő jobb felső sarkába (touch-hoz). Az enkóder a
+   BTN_LONG-on jut vissza (display_lcd_set_back_cb). A click a megadott
+   cb-t hívja (LVGL event-cb -> port-taszk -> NINCS extra lock). */
+static void add_back_button(lv_obj_t *parent, lv_event_cb_t cb)
+{
+    lv_obj_t *btn = lv_button_create(parent);
+    lv_obj_set_size(btn, 90, 34);
+    lv_obj_align(btn, LV_ALIGN_TOP_RIGHT, -4, 3);
+    lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *l = lv_label_create(btn);
+    lv_label_set_text(l, "Vissza");
+    lv_obj_center(l);
+    /* A vissza-gombot is fókuszálhatóvá tesszük (enkóderrel is elérhető). */
+    lv_group_add_obj(display_lcd_group(), btn);
+}
+
+/* ====================================================================== */
+/* Fájllista-gyűjtés az aktív forrás /fw könyvtárából (a korábbi logika)  */
+/* ====================================================================== */
 static void fw_collect_cb(const char *name, size_t size, bool is_dir, void *ctx)
 {
     (void)size; (void)ctx;
@@ -186,573 +212,604 @@ static void fw_collect_cb(const char *name, size_t size, bool is_dir, void *ctx)
     s_fw_count++;
 }
 
-/* A teljes gyűjtést a közös lock alatt végezzük (terv 11. + 15.x). */
 static void fw_list_load(void)
 {
     s_fw_count = 0;
-    /* Az aktív forrás /fw könyvtára (USB stick ha be van dugva, különben LFS). */
     char dir[48];
     snprintf(dir, sizeof(dir), "%s/fw", storage_src_base());
     esp_err_t err = storage_src_list(dir, fw_collect_cb, NULL);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "fw lista hiba: %s", esp_err_to_name(err));
-        /* hibánál üres listát mutatunk */
     }
 }
 
-/* ---------------------------------------------------------------------- */
-/* Képernyő-rajzolók                                                      */
-/* ---------------------------------------------------------------------- */
+/* ====================================================================== */
+/* Event-callbackek (mind az LVGL port-taszkon futnak -> NINCS extra lock)*/
+/* ====================================================================== */
 
-/* 1. Idle/status: cím + állapotsorok. Cím scale 2, az állapotsorok (≤10 char)
-   szintén scale 2, nagyobb sor-osztással (y=18,36,52). */
-static void draw_idle(void)
+/* Globális "vissza" — a BTN_LONG (display_lcd_set_back_cb) ebbe fut. Egy
+   szinttel feljebb lép a flow-ban. A worker-műveletek alatt (PROGRESS/AVRPROG)
+   a vissza tiltott, amíg a művelet be nem fejeződik (a worker maga vált
+   eredmény-képernyőre). */
+static void ui_go_back(void)
 {
-    display_oled_clear();
-    display_oled_text_center(0, "SWD PROG", 2);
-    display_oled_text(2, 18, "WiFi:   --", 2);
-    display_oled_text(2, 36, "Target: --", 2);
-    display_oled_text(2, 52, "Serial: --", 2);
-    display_oled_flush();
+    switch (s_screen) {
+    case SCR_IDLE:
+        /* már a tetején — nincs hova */
+        break;
+    case SCR_MENU:
+        ui_show_idle();
+        break;
+    case SCR_FWLIST:
+    case SCR_AVRLIST:
+    case SCR_PLACEHOLDER:
+    case SCR_RESULT:
+        ui_show_menu();
+        break;
+    case SCR_FWSEL:
+        ui_show_fwlist(false);
+        break;
+    case SCR_AVRSEL:
+        ui_show_fwlist(true);
+        break;
+    case SCR_PROGRESS:
+    case SCR_AVRPROG:
+        /* Flash közben a vissza tiltott (a worker fejezi be). */
+        break;
+    }
 }
 
-/* 4. Placeholder almenük. Nagy (scale 2) felirat középen. */
-static void draw_placeholder(void)
+/* A back-cb az LVGL indev read_cb-jéből hívódik (port-taszk) -> közvetlen
+   lv_*() hívás engedélyezett, NE végy port-lock-ot (a szerződés szerint). */
+static void back_cb_trampoline(void)
 {
-    display_oled_clear();
-    ui_draw_header(s_ph_title);
-    display_oled_text_center(28, "hamarosan", UI_LIST_SCALE);
-    display_oled_flush();
+    ui_go_back();
 }
 
-/* 3b. Kiválasztott fw megerősítő képernyő. "Selected:"/"OK=flash" scale 2,
-   a (hosszú lehet) fájlnév scale 1, hogy elférjen. */
-static void draw_fwsel(void)
+/* Touch "Vissza" gomb event-cb (LVGL event -> port-taszk). */
+static void back_btn_event(lv_event_t *e)
 {
-    display_oled_clear();
-    ui_draw_header("Program fw");
-    display_oled_text(2, 16, "Selected:", 2);
-    display_oled_text(2, 34, s_sel_name, 1);
-    display_oled_text(2, 48, "OK=flash", 2);   /* BTN_SHORT -> flash indul */
-    display_oled_flush();
+    (void)e;
+    ui_go_back();
 }
 
-/* 3b/AVR. Kiválasztott AVR fájl megerősítő képernyő (.hex/.bin). */
-static void draw_avrsel(void)
+/* IDLE: bárhová kattintva (a "Tovabb a menube" gomb) -> főmenü. */
+static void idle_enter_event(lv_event_t *e)
 {
-    display_oled_clear();
-    ui_draw_header("AVR ISP");
-    display_oled_text(2, 16, "Selected:", 2);
-    display_oled_text(2, 34, s_sel_name, 1);
-    display_oled_text(2, 48, "OK=flash", 2);   /* BTN_SHORT -> AVR flash indul */
-    display_oled_flush();
+    (void)e;
+    ui_show_menu();
 }
 
-/* ---------------------------------------------------------------------- */
-/* Flash progress — prog_session callback + indító (terv 8/15)            */
-/* ---------------------------------------------------------------------- */
+/* Főmenü-elem kattintás: az elem indexét a user_data-ban tároljuk. */
+static void menu_item_event(lv_event_t *e)
+{
+    int idx = (int)(intptr_t)lv_event_get_user_data(e);
 
-/* prog_phase_t -> rövid magyar fázis-címke a progress-képernyőhöz. */
+    switch (idx) {
+    case 0:  /* Program firmware */
+        fw_list_load();
+        ui_show_fwlist(false);
+        break;
+    case 1:  /* Cel info (SWD) — detekt a workeren */
+        if (prog_session_busy()) {
+            ui_show_result("Cel info", "Foglalt", "Mas muvelet fut", false);
+        } else {
+            ui_show_result("Cel info", "Detektalas...", "", true);
+            s_screen = SCR_RESULT;       /* a worker felülírja az eredménnyel */
+            post_job(JOB_DETECT_SWD);
+        }
+        break;
+    case 2:  /* AVR ISP — detekt a workeren */
+        if (prog_session_busy()) {
+            ui_show_result("AVR ISP", "Foglalt", "Mas muvelet fut", false);
+        } else {
+            ui_show_result("AVR ISP", "Detektalas...", "", true);
+            s_screen = SCR_RESULT;
+            post_job(JOB_DETECT_AVR);
+        }
+        break;
+    default: /* placeholder */
+        new_screen_root();
+        make_header(s_root, MENU_ITEMS[idx]);
+        {
+            lv_obj_t *l = lv_label_create(s_root);
+            lv_label_set_text(l, "hamarosan");
+            lv_obj_center(l);
+            lv_obj_set_style_text_color(l, lv_color_white(), 0);
+            add_back_button(s_root, back_btn_event);
+        }
+        s_screen = SCR_PLACEHOLDER;
+        break;
+    }
+}
+
+/* Fájllista-elem kattintás: a fájlnevet user_data-ból másoljuk, és a
+   megerősítő képernyőre lépünk. Az 'avr' flag a user_data legalsó bitjén
+   utazna — egyszerűbb: külön event-cb a két listához (lásd lent). */
+static void fw_item_event(lv_event_t *e)
+{
+    const char *name = (const char *)lv_event_get_user_data(e);
+    bool avr = (s_screen == SCR_AVRLIST);
+    strncpy(s_sel_name, name, FW_NAME_LEN - 1);
+    s_sel_name[FW_NAME_LEN - 1] = '\0';
+
+    /* Megerősítő képernyő: lv_msgbox-szerű, de itt egy egyszerű konténer +
+       két gomb (OK=flash / Megse). HW-n hangolandó méret. */
+    new_screen_root();
+    make_header(s_root, avr ? "AVR ISP" : "Program firmware");
+
+    lv_obj_t *info = lv_label_create(s_root);
+    lv_label_set_text_fmt(info, "Kivalasztva:\n%s", s_sel_name);
+    lv_obj_set_style_text_color(info, lv_color_white(), 0);
+    lv_obj_align(info, LV_ALIGN_TOP_LEFT, 12, 56);
+    lv_label_set_long_mode(info, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(info, LV_PCT(90));
+
+    /* OK = flash gomb. A click-cb az aktuális képernyő (SCR_FWSEL/SCR_AVRSEL)
+       alapján dönt SWD vs. AVR flash között -> egy közös cb elég. */
+    lv_obj_t *ok = lv_button_create(s_root);
+    lv_obj_set_size(ok, 180, 56);
+    lv_obj_align(ok, LV_ALIGN_BOTTOM_LEFT, 24, -24);
+    lv_obj_add_event_cb(ok, ui_confirm_ok_event, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *okl = lv_label_create(ok);
+    lv_label_set_text(okl, "OK = Flash");
+    lv_obj_center(okl);
+    lv_group_add_obj(display_lcd_group(), ok);
+
+    /* Megse gomb. */
+    lv_obj_t *cancel = lv_button_create(s_root);
+    lv_obj_set_size(cancel, 180, 56);
+    lv_obj_align(cancel, LV_ALIGN_BOTTOM_RIGHT, -24, -24);
+    lv_obj_add_event_cb(cancel, back_btn_event, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *cl = lv_label_create(cancel);
+    lv_label_set_text(cl, "Megse");
+    lv_obj_center(cl);
+    lv_group_add_obj(display_lcd_group(), cancel);
+
+    s_screen = avr ? SCR_AVRSEL : SCR_FWSEL;
+}
+
+/* A megerősítő "OK = Flash" gomb event-cb-je: az aktuális képernyő alapján
+   SWD vagy AVR flash-job indítása a workeren. */
+static void ui_confirm_ok_event(lv_event_t *e)
+{
+    (void)e;
+    if (prog_session_busy()) {
+        ui_show_result("Flash", "Foglalt", "Mas muvelet fut", false);
+        return;
+    }
+    bool avr = (s_screen == SCR_AVRSEL);
+    ui_show_progress(avr);
+    if (avr) {
+        post_job(JOB_FLASH_AVR);
+    } else {
+        post_job(JOB_FLASH_SWD);
+    }
+}
+
+/* ====================================================================== */
+/* Képernyő-építők (mind a port-taszkon hívódnak: vagy event-cb-ből, vagy */
+/* a worker lvgl_port_lock alól)                                          */
+/* ====================================================================== */
+
+/* 1. IDLE/status: cím + WiFi/Target/Serial labelek a target_state-ből. */
+static void ui_show_idle(void)
+{
+    new_screen_root();
+    make_header(s_root, "SWD PROG");
+
+    target_state_t ts;
+    target_state_get(&ts);
+
+    char tbuf[64];
+
+    lv_obj_t *cont = lv_obj_create(s_root);
+    lv_obj_set_size(cont, LV_PCT(96), LV_PCT(70));
+    lv_obj_align(cont, LV_ALIGN_TOP_MID, 0, 50);
+    lv_obj_set_style_bg_opa(cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(cont, 0, 0);
+    lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_COLUMN);
+    lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *l1 = lv_label_create(cont);
+    /* A WiFi-állapotot a net_wifi nem teszi a target_state-be -> általános
+       jelzés. HW-n hangolandó (ha kell, kösd be a net_wifi státuszt). */
+    lv_label_set_text(l1, "WiFi:   ld. web UI");
+    lv_obj_set_style_text_color(l1, lv_color_white(), 0);
+
+    lv_obj_t *l2 = lv_label_create(cont);
+    if (ts.target_present && ts.dev_id != 0) {
+        snprintf(tbuf, sizeof(tbuf), "Target: %s (0x%03X)",
+                 ts.target_name[0] ? ts.target_name : "?", ts.dev_id);
+    } else {
+        snprintf(tbuf, sizeof(tbuf), "Target: --");
+    }
+    lv_label_set_text(l2, tbuf);
+    lv_obj_set_style_text_color(l2, lv_color_white(), 0);
+
+    lv_obj_t *l3 = lv_label_create(cont);
+    snprintf(tbuf, sizeof(tbuf), "Serial: %s", ts.serial_link ? "OK" : "--");
+    lv_label_set_text(l3, tbuf);
+    lv_obj_set_style_text_color(l3, lv_color_white(), 0);
+
+    /* "Tovabb a menube" gomb (touch + enkóder). */
+    lv_obj_t *btn = lv_button_create(s_root);
+    lv_obj_set_size(btn, 220, 56);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -24);
+    lv_obj_add_event_cb(btn, idle_enter_event, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *bl = lv_label_create(btn);
+    lv_label_set_text(bl, "Menu");
+    lv_obj_center(bl);
+    lv_group_add_obj(display_lcd_group(), btn);
+    lv_group_focus_obj(btn);
+
+    s_screen = SCR_IDLE;
+}
+
+/* 2. Főmenü: lv_list gombokkal, a MENU_ITEMS sorrendben. */
+static void ui_show_menu(void)
+{
+    new_screen_root();
+    make_header(s_root, "Fomenu");
+
+    lv_obj_t *list = lv_list_create(s_root);
+    lv_obj_set_size(list, LV_PCT(100), 280);            /* HW-n hangolandó */
+    lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 40);
+    lv_obj_set_style_bg_color(list, lv_color_hex(0x101418), 0);
+
+    for (int i = 0; i < MENU_COUNT; i++) {
+        lv_obj_t *btn = lv_list_add_button(list, NULL, MENU_ITEMS[i]);
+        lv_obj_add_event_cb(btn, menu_item_event, LV_EVENT_CLICKED,
+                            (void *)(intptr_t)i);
+        lv_group_add_obj(display_lcd_group(), btn);
+        if (i == 0) lv_group_focus_obj(btn);
+    }
+
+    s_screen = SCR_MENU;
+}
+
+/* 3. FW-lista (SWD) vagy AVR-lista (avr=true): lv_list a s_fw_names-ből.
+   A fw_list_load() hívás a belépés előtt megtörténik. */
+static void ui_show_fwlist(bool avr)
+{
+    new_screen_root();
+    const char *title;
+    bool usb = (storage_src_active() == STORAGE_SRC_USB);
+    if (avr) title = usb ? "AVR fajl [USB]" : "AVR ISP fajl";
+    else     title = usb ? "Firmware [USB]" : "Program firmware";
+    make_header(s_root, title);
+    add_back_button(s_root, back_btn_event);
+
+    if (s_fw_count == 0) {
+        lv_obj_t *l = lv_label_create(s_root);
+        lv_label_set_text(l, avr ? "(nincs fajl)" : "(nincs fw fajl)");
+        lv_obj_center(l);
+        lv_obj_set_style_text_color(l, lv_color_white(), 0);
+    } else {
+        lv_obj_t *list = lv_list_create(s_root);
+        lv_obj_set_size(list, LV_PCT(100), 270);
+        lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 44);
+        lv_obj_set_style_bg_color(list, lv_color_hex(0x101418), 0);
+
+        for (int i = 0; i < s_fw_count; i++) {
+            lv_obj_t *btn = lv_list_add_button(list, NULL, s_fw_names[i]);
+            /* A user_data a NÉV stabil pointere (s_fw_names statikus). */
+            lv_obj_add_event_cb(btn, fw_item_event, LV_EVENT_CLICKED,
+                                (void *)s_fw_names[i]);
+            lv_group_add_obj(display_lcd_group(), btn);
+            if (i == 0) lv_group_focus_obj(btn);
+        }
+    }
+
+    s_screen = avr ? SCR_AVRLIST : SCR_FWLIST;
+}
+
+/* 5. Progress-képernyő (SWD vagy AVR): fázis-label + cél/fájl + lv_bar + %. */
+static void ui_show_progress(bool avr)
+{
+    new_screen_root();
+    make_header(s_root, avr ? "AVR flash" : "SWD flash");
+
+    s_prog_phase = lv_label_create(s_root);
+    lv_label_set_text(s_prog_phase, "Indul...");
+    lv_obj_set_style_text_color(s_prog_phase, lv_color_white(), 0);
+    lv_obj_align(s_prog_phase, LV_ALIGN_TOP_LEFT, 16, 60);
+
+    s_prog_name = lv_label_create(s_root);
+    lv_label_set_text(s_prog_name, s_sel_name);
+    lv_obj_set_style_text_color(s_prog_name, lv_color_white(), 0);
+    lv_obj_align(s_prog_name, LV_ALIGN_TOP_LEFT, 16, 100);
+
+    s_prog_bar = lv_bar_create(s_root);
+    lv_obj_set_size(s_prog_bar, LV_PCT(90), 30);
+    lv_obj_align(s_prog_bar, LV_ALIGN_CENTER, 0, 20);
+    lv_bar_set_range(s_prog_bar, 0, 100);
+    lv_bar_set_value(s_prog_bar, 0, LV_ANIM_OFF);
+
+    s_prog_pct = lv_label_create(s_root);
+    lv_label_set_text(s_prog_pct, "0%");
+    lv_obj_set_style_text_color(s_prog_pct, lv_color_white(), 0);
+    lv_obj_align(s_prog_pct, LV_ALIGN_CENTER, 0, 60);
+
+    s_screen = avr ? SCR_AVRPROG : SCR_PROGRESS;
+}
+
+/* Általános eredmény-/info-képernyő: cím + 2 sor + OK gomb (vissza a menübe).
+   Worker-kontextusból is hívható (a hívó tartja a port-lockot). */
+static void ui_show_result(const char *title, const char *line1,
+                           const char *line2, bool ok)
+{
+    new_screen_root();
+    make_header(s_root, title);
+
+    lv_obj_t *l1 = lv_label_create(s_root);
+    lv_label_set_text(l1, line1 ? line1 : "");
+    lv_obj_set_style_text_color(l1, ok ? lv_color_hex(0x4CAF50)
+                                       : lv_color_hex(0xF44336), 0);
+    lv_obj_align(l1, LV_ALIGN_TOP_MID, 0, 70);
+
+    if (line2 && line2[0]) {
+        lv_obj_t *l2 = lv_label_create(s_root);
+        lv_label_set_text(l2, line2);
+        lv_obj_set_style_text_color(l2, lv_color_white(), 0);
+        lv_label_set_long_mode(l2, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(l2, LV_PCT(90));
+        lv_obj_align(l2, LV_ALIGN_TOP_MID, 0, 120);
+    }
+
+    lv_obj_t *okb = lv_button_create(s_root);
+    lv_obj_set_size(okb, 200, 56);
+    lv_obj_align(okb, LV_ALIGN_BOTTOM_MID, 0, -24);
+    lv_obj_add_event_cb(okb, back_btn_event, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *okl = lv_label_create(okb);
+    lv_label_set_text(okl, "OK");
+    lv_obj_center(okl);
+    lv_group_add_obj(display_lcd_group(), okb);
+    lv_group_focus_obj(okb);
+
+    s_screen = SCR_RESULT;
+}
+
+/* ====================================================================== */
+/* Progress-frissítés thread-safe (a worker-taszkból, lock alatt)         */
+/* ====================================================================== */
+
+/* prog_phase_t -> rövid magyar fázis-címke. */
 static const char *phase_label(prog_phase_t p)
 {
     switch (p) {
     case PROG_CONNECT: return "Connect";
     case PROG_ERASE:   return "Torles";
     case PROG_PROGRAM: return "Iras";
-    case PROG_VERIFY:  return "Ellenor.";
+    case PROG_VERIFY:  return "Ellenorzes";
     case PROG_DONE:    return "KESZ";
     case PROG_FAILED:  return "HIBA";
     default:           return "...";
     }
 }
 
-/* prog_session progress callback: a flash-elő (itt: ui_task) kontextusából
-   hívódik minden fázis-/százalék-váltáskor. Egy teljes képernyőt rajzol:
-   fázis-címke (fejléc), target_name és egy százalékos progress-bar.
-   Minden hívásnál clear -> rajz -> flush (terv 15.1). */
-static void ui_flash_cb(const prog_status_t *st, void *ctx)
+/* SWD progress callback — a worker-taszk kontextusából hívódik (NEM a
+   port-taszk!). Ezért MINDEN lv_*() hívást lvgl_port_lock alá teszünk.
+   THROTTLE (reference 5.): csak fázisváltáskor / terminál állapotban /
+   >=200 ms-enként frissítünk, hogy a render ne lassítsa a flash-t. */
+static void worker_swd_progress(const prog_status_t *st, void *ctx)
 {
     (void)ctx;
     if (!st) return;
 
-    /* THROTTLE: a teljes OLED-flush ~25 ms (1 KB I2C @ 400 kHz). A progress-cb
-       a program/verify alatt sok százszor hívódik (chunk/oldal), ezért MINDEN
-       hívásra rajzolni dominálná a flash-időt (verify ~115 chunk × 25 ms ≈ 2,9 s).
-       Csak fázisváltáskor, terminál állapotban (DONE/FAILED), vagy >=120 ms-enként
-       rajzolunk -> ~7 fps progress, a flash-idő töredékéért. */
     bool terminal = (st->phase == PROG_DONE || st->phase == PROG_FAILED);
     static int64_t s_last_us = 0;
     static int s_last_phase = -1;
     int64_t now = esp_timer_get_time();
-    /* 250 ms = ~4 fps progress: a feltöltés (program) ÉS az ellenőrzés (verify)
-       alatt is ritkán rajzol, hogy az OLED-flush (~25 ms) ne lassítsa a flash-t. */
-    if (!terminal && (int)st->phase == s_last_phase && (now - s_last_us) < 250000) {
-        return;   /* túl gyakori -> kihagyjuk a rajzot */
+    if (!terminal && (int)st->phase == s_last_phase &&
+        (now - s_last_us) < 200000) {
+        return;
     }
     s_last_us = now;
     s_last_phase = (int)st->phase;
 
-    /* Százalék 0..100 közé szorítva (defenzív a bar-rajzhoz). */
     int pct = st->percent;
-    if (pct < 0)   pct = 0;
+    if (pct < 0) pct = 0;
     if (pct > 100) pct = 100;
 
-    display_oled_clear();
-    ui_draw_header(phase_label(st->phase));
-
-    /* Cél neve csonkolva (scale 2, max 10 char), illetve a százalék scale 2. */
-    char nbuf[UI_LIST_MAXCH + 1];
-    const char *nm = ui_trunc(st->target_name[0] ? st->target_name : "?",
-                              nbuf, sizeof(nbuf), UI_LIST_MAXCH);
-    display_oled_text(2, 16, nm, UI_LIST_SCALE);
-
-    char pbuf[8];
-    snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
-    display_oled_text(2, 34, pbuf, UI_LIST_SCALE);
-
-    /* Progress-bar: 1px keret + belső kitöltés a százalék arányában. */
-    const uint8_t bx = 2, by = 52, bw = OLED_W - 4, bh = 10;
-    display_oled_rect(bx, by, bw, bh);
-    int fill = ((bw - 2) * pct) / 100;
-    if (fill > 0) {
-        display_oled_fill_rect(bx + 1, by + 1, (uint8_t)fill, bh - 2, true);
+    if (!lvgl_port_lock(0)) return;
+    /* Védő: a worker még futhat, miközben a user már elnavigált (a widgetek
+       törölve). A pointereket csak akkor használjuk, ha a progress-képernyő
+       aktív. */
+    if (s_prog_bar) {
+        lv_label_set_text(s_prog_phase, phase_label(st->phase));
+        if (st->target_name[0]) lv_label_set_text(s_prog_name, st->target_name);
+        lv_bar_set_value(s_prog_bar, pct, LV_ANIM_OFF);
+        char pbuf[8];
+        snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
+        lv_label_set_text(s_prog_pct, pbuf);
     }
-
-    display_oled_flush();
+    lvgl_port_unlock();
 }
 
-/* A kiválasztott fw szinkron flash-elése a ui_task kontextusából. A flash
-   ideje alatt a UI nem dolgoz fel bevitelt (a prog_session szinkron) — ez
-   flash közben elfogadható. A végén egy eredmény-képernyőt mutat, és egy
-   gombnyomásig blokkol, majd a hívó visszaviszi a menübe. */
-static void ui_start_flash(void)
+/* AVR progress callback — ugyanaz a minta, a phase szöveget a hívó adja. */
+static void worker_avr_progress(const char *phase, int percent, void *ctx)
 {
-    char fw_path[64];
-    snprintf(fw_path, sizeof(fw_path), "%s/fw/%s", storage_src_base(), s_sel_name);
-
-    ESP_LOGI(TAG, "flash indul: %s", fw_path);
-    esp_err_t err = prog_session_flash_file(fw_path, 0, ui_flash_cb, NULL);
-
-    /* Eredmény-képernyő: OK -> "KESZ", hiba -> esp_err név (rövid). */
-    display_oled_clear();
-    if (err == ESP_OK) {
-        ui_draw_header("KESZ");
-        display_oled_text_center(26, "Flash OK", UI_LIST_SCALE);
-        ESP_LOGI(TAG, "flash kesz: %s", fw_path);
-    } else {
-        ui_draw_header("HIBA");
-        /* Az esp_err név hosszú lehet -> scale 1, hogy elférjen. */
-        display_oled_text_center(28, esp_err_to_name(err), 1);
-        ESP_LOGE(TAG, "flash hiba: %s", esp_err_to_name(err));
-    }
-    display_oled_text_center(52, "Nyomj gombot", 1);
-    display_oled_flush();
-
-    /* Várunk egy gombnyomásra (bármilyen enkóder-eseményt elnyelünk). */
-    enc_event_t ev;
-    while (input_enc_get(&ev, portMAX_DELAY)) {
-        if (ev == BTN_SHORT || ev == BTN_LONG) break;
-    }
-}
-
-/* Cél-detektálás (SWD) a ui_task kontextusából, szinkron. Egy
-   "Detektalas..." képernyőt mutat, majd a prog_session_detect() eredménye
-   alapján kirajzolja a cél nevét/DEV_ID-jét/üzenetét (vagy "Nincs cel"/hiba),
-   és egy gombnyomásig blokkol. A hívó utána visszaviszi a főmenübe. */
-static void ui_start_detect(void)
-{
-    /* Ha épp flash/detekt fut, ne indítsunk párhuzamosan. */
-    if (prog_session_busy()) {
-        display_oled_clear();
-        ui_draw_header("Cel info");
-        display_oled_text_center(28, "Foglalt", UI_LIST_SCALE);
-        display_oled_flush();
-        enc_event_t evb;
-        while (input_enc_get(&evb, portMAX_DELAY)) {
-            if (evb == BTN_SHORT || evb == BTN_LONG) break;
-        }
+    (void)ctx;
+    static int64_t s_last_us = 0;
+    static int s_last_pct = -1;
+    bool terminal = (percent >= 100 || percent < 0);
+    int64_t now = esp_timer_get_time();
+    if (!terminal && percent == s_last_pct && (now - s_last_us) < 200000) {
         return;
     }
+    s_last_us = now;
+    s_last_pct = percent;
 
-    /* "Detektalas..." képernyő a (potenciálisan lassú) SWD bring-up alatt. */
-    display_oled_clear();
-    ui_draw_header("Cel info");
-    display_oled_text_center(28, "Detektalas", UI_LIST_SCALE);
-    display_oled_flush();
+    int pct = percent;
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
 
+    if (!lvgl_port_lock(0)) return;
+    if (s_prog_bar) {
+        lv_label_set_text(s_prog_phase, phase ? phase : "...");
+        lv_bar_set_value(s_prog_bar, pct, LV_ANIM_OFF);
+        char pbuf[8];
+        snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
+        lv_label_set_text(s_prog_pct, pbuf);
+    }
+    lvgl_port_unlock();
+}
+
+/* ====================================================================== */
+/* Worker-taszk — a job-queue-n blokkol, a hosszú szinkron hívásokat futtatja*/
+/* ====================================================================== */
+
+static void do_flash_swd(void)
+{
+    char fw_path[80];
+    snprintf(fw_path, sizeof(fw_path), "%s/fw/%s", storage_src_base(), s_sel_name);
+    ESP_LOGI(TAG, "SWD flash indul: %s", fw_path);
+
+    esp_err_t err = prog_session_flash_file(fw_path, 0, worker_swd_progress, NULL);
+
+    if (lvgl_port_lock(0)) {
+        if (err == ESP_OK) {
+            ui_show_result("KESZ", "Flash OK", s_sel_name, true);
+            ESP_LOGI(TAG, "SWD flash kesz: %s", fw_path);
+        } else {
+            ui_show_result("HIBA", esp_err_to_name(err), s_sel_name, false);
+            ESP_LOGE(TAG, "SWD flash hiba: %s", esp_err_to_name(err));
+        }
+        lvgl_port_unlock();
+    }
+}
+
+static void do_detect_swd(void)
+{
     prog_status_t st;
     memset(&st, 0, sizeof(st));
     esp_err_t err = prog_session_detect(&st);
 
-    display_oled_clear();
-    if (err == ESP_OK && st.dev_id != 0) {
-        /* Siker: cél neve (scale 2, csonkolva) + DEV_ID hexben (≤10 char, scale 2)
-           + (ha van) üzenet scale 1-en (hosszú lehet). */
-        ui_draw_header("Cel info");
-        char nbuf[UI_LIST_MAXCH + 1];
-        display_oled_text(2, 16,
-                          ui_trunc(st.target_name[0] ? st.target_name : "?",
-                                   nbuf, sizeof(nbuf), UI_LIST_MAXCH),
-                          UI_LIST_SCALE);
-
-        char dbuf[20];
-        snprintf(dbuf, sizeof(dbuf), "DEV:0x%03X", st.dev_id);
-        display_oled_text(2, 34, dbuf, UI_LIST_SCALE);
-
-        /* (Az st.message hosszú lehet és ütközne a prompttal — kihagyjuk;
-           a kulcs-info a név + DEV_ID. A teljes üzenet a logban marad.) */
-        ESP_LOGI(TAG, "detekt OK: %s DEV=0x%03X %s",
-                 st.target_name, st.dev_id, st.message);
-    } else {
-        /* Nincs cél vagy hiba: nagy "Nincs cel", alatta üzenet scale 1. */
-        ui_draw_header("Cel info");
-        display_oled_text_center(20, "Nincs cel", UI_LIST_SCALE);
-        const char *m = st.message[0] ? st.message : esp_err_to_name(err);
-        display_oled_text_center(42, m, 1);
-        ESP_LOGW(TAG, "detekt sikertelen: err=%s msg=%s",
-                 esp_err_to_name(err), st.message);
-    }
-    display_oled_text_center(54, "Nyomj gombot", 1);
-    display_oled_flush();
-
-    /* Várunk egy gombnyomásra (bármilyen enkóder-eseményt elnyelünk). */
-    enc_event_t ev;
-    while (input_enc_get(&ev, portMAX_DELAY)) {
-        if (ev == BTN_SHORT || ev == BTN_LONG) break;
+    if (lvgl_port_lock(0)) {
+        if (err == ESP_OK && st.dev_id != 0) {
+            char l1[64];
+            snprintf(l1, sizeof(l1), "%s (0x%03X)",
+                     st.target_name[0] ? st.target_name : "?", st.dev_id);
+            ui_show_result("Cel info", l1,
+                           st.message[0] ? st.message : "", true);
+            ESP_LOGI(TAG, "detekt OK: %s DEV=0x%03X %s",
+                     st.target_name, st.dev_id, st.message);
+        } else {
+            ui_show_result("Cel info", "Nincs cel",
+                           st.message[0] ? st.message : esp_err_to_name(err),
+                           false);
+            ESP_LOGW(TAG, "detekt sikertelen: err=%s msg=%s",
+                     esp_err_to_name(err), st.message);
+        }
+        lvgl_port_unlock();
     }
 }
 
-/* ---------------------------------------------------------------------- */
-/* AVR ISP flow — detekt + flash progress (mirror a SWD-ének, terv 15)    */
-/* ---------------------------------------------------------------------- */
-
-/* avr_isp progress callback: a flashelő (itt: ui_task) kontextusából hívódik
-   minden fázis-/százalék-váltáskor. Egy teljes képernyőt rajzol: fázis-címke
-   (fejléc, a hívótól kapott 'phase' szöveg), a fájlnév és egy százalékos
-   progress-bar. A SWD ui_flash_cb mintájára (clear -> rajz -> flush). */
-static void ui_avr_flash_cb(const char *phase, int percent, void *ctx)
+static void do_detect_avr(void)
 {
-    (void)ctx;
-
-    /* Százalék 0..100 közé szorítva (defenzív a bar-rajzhoz). */
-    int pct = percent;
-    if (pct < 0)   pct = 0;
-    if (pct > 100) pct = 100;
-
-    display_oled_clear();
-    ui_draw_header(phase ? phase : "...");
-
-    /* A flashelt fájl neve csonkolva (scale 2), illetve a százalék scale 2. */
-    char nbuf[UI_LIST_MAXCH + 1];
-    const char *nm = ui_trunc(s_sel_name[0] ? s_sel_name : "?",
-                              nbuf, sizeof(nbuf), UI_LIST_MAXCH);
-    display_oled_text(2, 16, nm, UI_LIST_SCALE);
-
-    char pbuf[8];
-    snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
-    display_oled_text(2, 34, pbuf, UI_LIST_SCALE);
-
-    /* Progress-bar: 1px keret + belső kitöltés a százalék arányában. */
-    const uint8_t bx = 2, by = 52, bw = OLED_W - 4, bh = 10;
-    display_oled_rect(bx, by, bw, bh);
-    int fill = ((bw - 2) * pct) / 100;
-    if (fill > 0) {
-        display_oled_fill_rect(bx + 1, by + 1, (uint8_t)fill, bh - 2, true);
-    }
-
-    display_oled_flush();
-}
-
-/* A kiválasztott AVR fájl szinkron flashelése a ui_task kontextusából. A SWD
-   ui_start_flash mintájára: a hívás végéig blokkol (progress a cb-ben), végén
-   eredmény-képernyő, majd egy gombnyomásig vár; a hívó visz vissza a listához. */
-static void ui_avr_start_flash(void)
-{
-    char fw_path[64];
-    snprintf(fw_path, sizeof(fw_path), "%s/fw/%s", storage_src_base(), s_sel_name);
-
-    ESP_LOGI(TAG, "AVR flash indul: %s", fw_path);
-    esp_err_t err = avr_isp_flash_file(fw_path, ui_avr_flash_cb, NULL);
-
-    /* Eredmény-képernyő: OK -> "KESZ", hiba -> esp_err név (rövid). */
-    display_oled_clear();
-    if (err == ESP_OK) {
-        ui_draw_header("KESZ");
-        display_oled_text_center(26, "Flash OK", UI_LIST_SCALE);
-        ESP_LOGI(TAG, "AVR flash kesz: %s", fw_path);
-    } else {
-        ui_draw_header("HIBA");
-        display_oled_text_center(28, esp_err_to_name(err), 1);
-        ESP_LOGE(TAG, "AVR flash hiba: %s", esp_err_to_name(err));
-    }
-    display_oled_text_center(52, "Nyomj gombot", 1);
-    display_oled_flush();
-
-    /* Várunk egy gombnyomásra (bármilyen enkóder-eseményt elnyelünk). */
-    enc_event_t ev;
-    while (input_enc_get(&ev, portMAX_DELAY)) {
-        if (ev == BTN_SHORT || ev == BTN_LONG) break;
-    }
-}
-
-/* AVR cél-detektálás a ui_task kontextusából, szinkron (mirror a SWD
-   ui_start_detect-jének). "Detektalas..." képernyőt mutat, majd az
-   avr_isp_detect() eredménye alapján kirajzolja a signature-t, az eszköznevet
-   és a flash méretet (vagy "Nincs cel"/hiba), és egy gombnyomásig blokkol.
-   Sikeres detekt esetén true-t ad vissza (a hívó tovább a fájllistához). */
-static bool ui_avr_start_detect(void)
-{
-    /* "Detektalas..." képernyő a (potenciálisan lassú) ISP bring-up alatt. */
-    display_oled_clear();
-    ui_draw_header("AVR ISP");
-    display_oled_text_center(28, "Detektalas", UI_LIST_SCALE);
-    display_oled_flush();
-
     avr_dev_t dev;
     memset(&dev, 0, sizeof(dev));
     esp_err_t err = avr_isp_detect(&dev);
 
-    bool ok = (err == ESP_OK);
-
-    display_oled_clear();
-    ui_draw_header("AVR ISP");
-    if (ok) {
-        /* Eszköznév (ismert) scale 2, csonkolva — ez a kulcs-info. */
-        char nbuf[UI_LIST_MAXCH + 1];
-        display_oled_text(2, 14,
-                          ui_trunc((dev.known && dev.name) ? dev.name : "ismeretlen",
-                                   nbuf, sizeof(nbuf), UI_LIST_MAXCH),
-                          UI_LIST_SCALE);
-
-        /* Signature 3 bájt hexben (hosszú -> scale 1). */
-        char sbuf[24];
-        snprintf(sbuf, sizeof(sbuf), "SIG:%02X %02X %02X",
-                 dev.sig[0], dev.sig[1], dev.sig[2]);
-        display_oled_text(2, 34, sbuf, 1);
-
-        /* Flash méret bájtban (scale 1). */
-        char fbuf[24];
-        snprintf(fbuf, sizeof(fbuf), "Flash:%uB", (unsigned)dev.flash_size);
-        display_oled_text(2, 44, fbuf, 1);
-
-        display_oled_text_center(54, "OK=tovabb", 1);
-        ESP_LOGI(TAG, "AVR detekt OK: sig %02X %02X %02X %s flash=%u",
-                 dev.sig[0], dev.sig[1], dev.sig[2],
-                 (dev.known && dev.name) ? dev.name : "ismeretlen",
-                 (unsigned)dev.flash_size);
-    } else {
-        display_oled_text_center(18, "Nincs cel", UI_LIST_SCALE);
-        display_oled_text_center(42, esp_err_to_name(err), 1);
-        display_oled_text_center(54, "Nyomj gombot", 1);
-        ESP_LOGW(TAG, "AVR detekt sikertelen: err=%s", esp_err_to_name(err));
+    if (lvgl_port_lock(0)) {
+        if (err == ESP_OK) {
+            char l1[64], l2[64];
+            snprintf(l1, sizeof(l1), "%s",
+                     (dev.known && dev.name) ? dev.name : "ismeretlen");
+            snprintf(l2, sizeof(l2), "SIG %02X %02X %02X  Flash %uB",
+                     dev.sig[0], dev.sig[1], dev.sig[2],
+                     (unsigned)dev.flash_size);
+            /* Sikeres detekt -> tovább a fájllistához. A listát itt töltjük
+               (a worker kontextusból a storage_src_list a saját lockját veszi,
+               nem ütközik az LVGL-lel). Majd a lista-képernyőt rajzoljuk. */
+            fw_list_load();
+            ui_show_fwlist(true);
+            /* A detekt-eredményt logoljuk; a fájllista a fő nézet. */
+            ESP_LOGI(TAG, "AVR detekt OK: %s %s", l1, l2);
+        } else {
+            ui_show_result("AVR ISP", "Nincs cel", esp_err_to_name(err), false);
+            ESP_LOGW(TAG, "AVR detekt sikertelen: %s", esp_err_to_name(err));
+        }
+        lvgl_port_unlock();
     }
-    display_oled_flush();
-
-    /* Várunk egy gombnyomásra. BTN_LONG = mégse (false), egyébként tovább. */
-    enc_event_t ev;
-    while (input_enc_get(&ev, portMAX_DELAY)) {
-        if (ev == BTN_LONG) return false;
-        if (ev == BTN_SHORT) break;
-    }
-    return ok;
 }
 
-/* A teljes aktuális képernyő kirajzolása az állapot alapján. */
-static void ui_render(void)
+static void do_flash_avr(void)
 {
-    switch (s_screen) {
-    case SCR_IDLE:
-        draw_idle();
-        break;
-    case SCR_MENU:
-        ui_draw_list("Fomenu", MENU_COUNT, s_sel, s_scroll, menu_item, "");
-        break;
-    case SCR_FWLIST: {
-        /* USB-forrás esetén jelezzük a fejlécben (a lista a stickről jön). */
-        const char *t = (storage_src_active() == STORAGE_SRC_USB)
-                            ? "Firmware [USB]" : "Program firmware";
-        ui_draw_list(t, s_fw_count, s_sel, s_scroll, fw_item, "(nincs fw fajl)");
-        break;
-    }
-    case SCR_FWSEL:
-        draw_fwsel();
-        break;
-    case SCR_AVRLIST: {
-        const char *t = (storage_src_active() == STORAGE_SRC_USB)
-                            ? "AVR fajl [USB]" : "AVR ISP fajl";
-        ui_draw_list(t, s_fw_count, s_sel, s_scroll, fw_item, "(nincs fajl)");
-        break;
-    }
-    case SCR_AVRSEL:
-        draw_avrsel();
-        break;
-    case SCR_PLACEHOLDER:
-        draw_placeholder();
-        break;
+    char fw_path[80];
+    snprintf(fw_path, sizeof(fw_path), "%s/fw/%s", storage_src_base(), s_sel_name);
+    ESP_LOGI(TAG, "AVR flash indul: %s", fw_path);
+
+    esp_err_t err = avr_isp_flash_file(fw_path, worker_avr_progress, NULL);
+
+    if (lvgl_port_lock(0)) {
+        if (err == ESP_OK) {
+            ui_show_result("KESZ", "Flash OK", s_sel_name, true);
+            ESP_LOGI(TAG, "AVR flash kesz: %s", fw_path);
+        } else {
+            ui_show_result("HIBA", esp_err_to_name(err), s_sel_name, false);
+            ESP_LOGE(TAG, "AVR flash hiba: %s", esp_err_to_name(err));
+        }
+        lvgl_port_unlock();
     }
 }
 
-/* ---------------------------------------------------------------------- */
-/* Navigáció-segédek                                                      */
-/* ---------------------------------------------------------------------- */
-
-/* Görgetés egy listában: a kijelölést mozgatja és a scroll-ablakot
-   úgy igazítja, hogy a kiválasztott elem mindig látható maradjon. */
-static void list_move(int delta, int count)
-{
-    if (count <= 0) return;
-    s_sel += delta;
-    if (s_sel < 0)        s_sel = 0;
-    if (s_sel >= count)   s_sel = count - 1;
-
-    if (s_sel < s_scroll)                    s_scroll = s_sel;
-    if (s_sel >= s_scroll + UI_VISIBLE)      s_scroll = s_sel - UI_VISIBLE + 1;
-}
-
-/* Belépés egy listába/almenübe: index + scroll nullázás. */
-static void enter_screen(ui_screen_t scr)
-{
-    s_screen = scr;
-    s_sel    = 0;
-    s_scroll = 0;
-}
-
-/* ---------------------------------------------------------------------- */
-/* Eseménykezelő — esemény + jelenlegi állapot -> új állapot             */
-/* ---------------------------------------------------------------------- */
-static void ui_handle(enc_event_t ev)
-{
-    switch (s_screen) {
-
-    /* --- Idle/status --- */
-    case SCR_IDLE:
-        if (ev == BTN_SHORT) {
-            enter_screen(SCR_MENU);
-        }
-        break;
-
-    /* --- Főmenü --- */
-    case SCR_MENU:
-        switch (ev) {
-        case ENC_CW:    list_move(+1, MENU_COUNT); break;
-        case ENC_CCW:   list_move(-1, MENU_COUNT); break;
-        case BTN_LONG:  enter_screen(SCR_IDLE);    break;
-        case BTN_SHORT:
-            if (s_sel == 0) {            /* Program firmware */
-                fw_list_load();
-                enter_screen(SCR_FWLIST);
-            } else if (s_sel == 1) {     /* Cel info (SWD) — szinkron detekt */
-                ui_start_detect();
-                /* Detekt után maradunk a főmenüben (újrarajzol a ui_task). */
-            } else if (s_sel == 2) {     /* AVR ISP (ATtiny) — detekt -> fájllista */
-                if (ui_avr_start_detect()) {
-                    /* Sikeres detekt + OK: tovább a fájllistához. */
-                    fw_list_load();
-                    enter_screen(SCR_AVRLIST);
-                }
-                /* Sikertelen/mégse: maradunk a főmenüben (ui_task újrarajzol). */
-            } else {                     /* placeholder almenük */
-                s_ph_title = MENU_ITEMS[s_sel];
-                enter_screen(SCR_PLACEHOLDER);
-            }
-            break;
-        }
-        break;
-
-    /* --- Program firmware lista --- */
-    case SCR_FWLIST:
-        switch (ev) {
-        case ENC_CW:    list_move(+1, s_fw_count); break;
-        case ENC_CCW:   list_move(-1, s_fw_count); break;
-        case BTN_LONG:  enter_screen(SCR_MENU);    break;
-        case BTN_SHORT:
-            if (s_fw_count > 0) {
-                strncpy(s_sel_name, s_fw_names[s_sel], FW_NAME_LEN - 1);
-                s_sel_name[FW_NAME_LEN - 1] = '\0';
-                s_screen = SCR_FWSEL;
-            }
-            break;
-        }
-        break;
-
-    /* --- Kiválasztott fw megerősítő --- */
-    case SCR_FWSEL:
-        if (ev == BTN_SHORT) {
-            /* Megerősítve: szinkron flash indítása a ui_task kontextusából.
-               A hívás a teljes folyamat alatt blokkol (progress a cb-ben). */
-            ui_start_flash();
-            s_screen = SCR_FWLIST;   /* végén vissza a fájllistához */
-        } else if (ev == BTN_LONG) {
-            /* Mégse: vissza a fájllistához flash nélkül. */
-            s_screen = SCR_FWLIST;
-        }
-        break;
-
-    /* --- AVR ISP fájllista --- */
-    case SCR_AVRLIST:
-        switch (ev) {
-        case ENC_CW:    list_move(+1, s_fw_count); break;
-        case ENC_CCW:   list_move(-1, s_fw_count); break;
-        case BTN_LONG:  enter_screen(SCR_MENU);    break;
-        case BTN_SHORT:
-            if (s_fw_count > 0) {
-                strncpy(s_sel_name, s_fw_names[s_sel], FW_NAME_LEN - 1);
-                s_sel_name[FW_NAME_LEN - 1] = '\0';
-                s_screen = SCR_AVRSEL;
-            }
-            break;
-        }
-        break;
-
-    /* --- AVR ISP kiválasztott fájl megerősítő --- */
-    case SCR_AVRSEL:
-        if (ev == BTN_SHORT) {
-            /* Megerősítve: szinkron AVR flash a ui_task kontextusából. */
-            ui_avr_start_flash();
-            s_screen = SCR_AVRLIST;   /* végén vissza a fájllistához */
-        } else if (ev == BTN_LONG) {
-            /* Mégse: vissza a fájllistához flash nélkül. */
-            s_screen = SCR_AVRLIST;
-        }
-        break;
-
-    /* --- Placeholder almenük --- */
-    case SCR_PLACEHOLDER:
-        if (ev == BTN_LONG) {
-            enter_screen(SCR_MENU);
-        }
-        break;
-    }
-}
-
-/* ---------------------------------------------------------------------- */
-/* A taszk: eseménysoron blokkol, csak változásra renderel (terv 15.1)    */
-/* ---------------------------------------------------------------------- */
-static void ui_task(void *arg)
+static void ui_worker(void *arg)
 {
     (void)arg;
-
-    /* Kezdő képernyő kirajzolása egyszer. */
-    ui_render();
-
-    enc_event_t ev;
+    ui_job_t job;
     for (;;) {
-        if (input_enc_get(&ev, portMAX_DELAY)) {
-            ui_handle(ev);   /* állapot frissítése */
-            ui_render();     /* clear -> rajz -> flush */
+        if (xQueueReceive(s_job_q, &job, portMAX_DELAY) != pdTRUE) continue;
+        switch (job) {
+        case JOB_FLASH_SWD:  do_flash_swd();  break;
+        case JOB_DETECT_SWD: do_detect_swd(); break;
+        case JOB_DETECT_AVR: do_detect_avr(); break;
+        case JOB_FLASH_AVR:  do_flash_avr();  break;
         }
     }
 }
 
-/* ---------------------------------------------------------------------- */
+static void post_job(ui_job_t job)
+{
+    if (s_job_q) {
+        xQueueSend(s_job_q, &job, 0);
+    }
+}
+
+/* ====================================================================== */
 /* Publikus API                                                           */
-/* ---------------------------------------------------------------------- */
+/* ====================================================================== */
 esp_err_t ui_start(void)
 {
-    BaseType_t ok = xTaskCreate(ui_task, "ui_task", 4096, NULL, 5, NULL);
-    if (ok != pdPASS) {
-        ESP_LOGE(TAG, "ui_task letrehozas sikertelen");
+    /* Job-queue + worker-taszk a hosszú szinkron műveletekhez. A worker-stack
+       a SWD/FLM + storage hívásokhoz bőven méretezve (8 KB). */
+    s_job_q = xQueueCreate(4, sizeof(ui_job_t));
+    if (s_job_q == NULL) {
+        ESP_LOGE(TAG, "job-queue letrehozas sikertelen");
         return ESP_ERR_NO_MEM;
     }
+    BaseType_t ok = xTaskCreate(ui_worker, "ui_worker", 8192, NULL, 5, NULL);
+    if (ok != pdPASS) {
+        ESP_LOGE(TAG, "ui_worker letrehozas sikertelen");
+        return ESP_ERR_NO_MEM;
+    }
+
+    /* A "vissza" (BTN_LONG / enkóder hosszú-nyomás) bekötése. A cb a port-
+       taszkból (indev read_cb) hívódik -> közvetlen lv_*() (NINCS extra lock). */
+    display_lcd_set_back_cb(back_cb_trampoline);
+
+    /* A kezdő képernyő felépítése. A ui_start-ot a main hívja (nem a port-
+       taszkon) -> a kezdeti widget-építést lock alá tesszük. */
+    if (lvgl_port_lock(0)) {
+        ui_show_idle();
+        lvgl_port_unlock();
+    } else {
+        ESP_LOGE(TAG, "lvgl_port_lock sikertelen (kezdo kepernyo)");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "ui_start OK (LVGL v%d.%d, worker-taszk + job-queue)",
+             LVGL_VERSION_MAJOR, LVGL_VERSION_MINOR);
     return ESP_OK;
 }

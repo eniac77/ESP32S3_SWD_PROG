@@ -3,7 +3,6 @@ idf_component_register(
     INCLUDE_DIRS "."
     REQUIRES
         storage_lfs
-        display_oled
         display_lcd
         input_enc
         ui

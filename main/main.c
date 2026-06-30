@@ -17,7 +17,7 @@
 
 #include "storage_lfs.h"
 #include "storage_src.h"
-#include "display_oled.h"
+#include "display_lcd.h"        /* OLED leváltva: ILI9488 + GT911 + LVGL (D3) */
 #include "input_enc.h"
 #include "net_wifi.h"
 #include "web_ui.h"
@@ -136,9 +136,12 @@ void app_main(void)
     TRY(storage_src_init());   /* opcionalis USB MSC forras (Kconfig-gated) */
     TRY(target_state_init());
 
-    /* Helyi UI */
-    TRY(display_oled_init());
+    /* Helyi UI — ILI9488 + GT911 touch + LVGL (display_lcd). Az input_enc
+       MARAD: a display_lcd enc_read_cb-je fogyasztja a queue-t (encoder-indev).
+       A display_lcd_init() a ui_start() ELŐTT fut, hogy a group/indev/port kész
+       legyen, mire a ui_start() az első képernyőt felépíti. */
     TRY(input_enc_init());
+    TRY(display_lcd_init());
     TRY(ui_start());
 
     /* Cél-interfészek (külön lábakon) */
