@@ -20,6 +20,7 @@ idf_component_register(
         flm_blobs
         avr_isp
         avr_updi
+        avr_pdi
 )
 
 # LittleFS image generálás: a ../data fa tartalma a "storage" partícióra kerül

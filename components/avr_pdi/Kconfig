@@ -1,0 +1,24 @@
+menu "AVR PDI programozo"
+    config AVR_PDI_ENABLE
+        bool "PDI interfesz engedelyezese"
+        default n
+        help
+            XMEGA (ATxmega) programozasa PDI ket-vezetekes interfeszen. Default KI:
+            a main csak akkor hozza fel (avr_pdi_init), ha be van kapcsolva.
+            FIGYELEM: a PDI_DATA (default GPIO7) es PDI_CLK (default GPIO21) labak
+            megegyeznek az ISP MISO/RESET es az UPDI labbal — ezert PDI-t es UPDI-t
+            NE kapcsold be egyszerre (ugyanazt a GPIO7-et hasznaljak). HW-n MEG NEM
+            IGAZOLT.
+
+    config AVR_PDI_CLK_GPIO
+        int "PDI_CLK GPIO (= target RESET)"
+        default 21
+        help
+            A PDI orajel; a meglevo programozo-header RESET-vonala (GPIO21).
+
+    config AVR_PDI_DATA_GPIO
+        int "PDI_DATA GPIO (ketiranyu)"
+        default 7
+        help
+            A PDI ketiranyu adatvonala; a header MISO-labja (GPIO7).
+endmenu
