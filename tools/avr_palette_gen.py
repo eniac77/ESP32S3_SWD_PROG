@@ -132,9 +132,16 @@ def main():
             out.append('    { { %s }, "%s", 0x%X, %d },' % (hs(r["sig"]), r["desc"], r["fsz"] or 0, r["fpg"] or 0))
         return out
 
-    tables = {"isp": isp_lines(), "updi": updi_lines(), "pdi": pdi_lines()}
-    sys.stderr.write("ISP=%d UPDI=%d PDI=%d (TPI=%d, kihagyva a lap-nelkuli/8051/HV parts)\n" % (
-        len(tables["isp"]), len(tables["updi"]), len(tables["pdi"]), len(byif["TPI"])))
+    def tpi_lines():
+        # reduced-core tiny: { sig, name, flash, write-size (word=2 v. page) }
+        out = []
+        for r in sorted(byif["TPI"], key=lambda x: x["sig"]):
+            out.append('    { { %s }, "%s", 0x%X, %d },' % (hs(r["sig"]), r["desc"], r["fsz"] or 0, r["fpg"] or 0))
+        return out
+
+    tables = {"isp": isp_lines(), "updi": updi_lines(), "pdi": pdi_lines(), "tpi": tpi_lines()}
+    sys.stderr.write("ISP=%d UPDI=%d PDI=%d TPI=%d\n" % (
+        len(tables["isp"]), len(tables["updi"]), len(tables["pdi"]), len(tables["tpi"])))
 
     if a.out:
         os.makedirs(a.out, exist_ok=True)

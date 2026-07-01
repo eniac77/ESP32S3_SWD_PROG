@@ -38,6 +38,9 @@
 #if CONFIG_AVR_PDI_ENABLE
 #include "avr_pdi.h"
 #endif
+#if CONFIG_AVR_TPI_ENABLE
+#include "avr_tpi.h"
+#endif
 #include "ui.h"
 
 static const char *TAG = "main";
@@ -161,6 +164,9 @@ void app_main(void)
 #endif
 #if CONFIG_AVR_PDI_ENABLE
     TRY(avr_pdi_init());            /* XMEGA — PDI bit-bang */
+#endif
+#if CONFIG_AVR_TPI_ENABLE
+    TRY(avr_tpi_init());            /* reduced-core ATtiny — TPI bit-bang */
 #endif
     TRY(target_serial_init());
 

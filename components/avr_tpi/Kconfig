@@ -1,0 +1,30 @@
+menu "AVR TPI programozo"
+    config AVR_TPI_ENABLE
+        bool "TPI interfesz engedelyezese"
+        default n
+        help
+            Reduced-core ATtiny (ATtiny4/5/9/10/20/40/102/104) programozasa TPI
+            harom-vezetekes interfeszen. Default KI: a main csak akkor hozza fel
+            (avr_tpi_init), ha be van kapcsolva.
+            FIGYELEM: a TPICLK (default GPIO15=SCK), TPIDATA (GPIO7=MISO) es RESET
+            (GPIO21) labak megegyeznek az ISP/PDI/UPDI labakkal -> egyszerre csak
+            egy AVR-interfeszt kapcsolj be. HW-n MEG NEM IGAZOLT.
+
+    config AVR_TPI_CLK_GPIO
+        int "TPICLK GPIO"
+        default 15
+        help
+            A TPI orajel; a meglevo programozo-header SCK-vonala (GPIO15).
+
+    config AVR_TPI_DATA_GPIO
+        int "TPIDATA GPIO (ketiranyu)"
+        default 7
+        help
+            A TPI ketiranyu adatvonala; a header MISO-labja (GPIO7).
+
+    config AVR_TPI_RESET_GPIO
+        int "TPI RESET GPIO (aktiv alacsony)"
+        default 21
+        help
+            A cel RESET laba; a TPI alatt alacsonyan tartva.
+endmenu
