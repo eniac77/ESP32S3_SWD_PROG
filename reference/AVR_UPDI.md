@@ -138,12 +138,15 @@ lapméret **512 B**. Az NVMCTRL bázis ugyanúgy `0x1000`, de a **parancskészle
 - Folyam (pymcuprog `nvmp2`): chip erase előre, majd laponként **FLASH_WRITE → buffer feltöltés (word) → wait → NOCMD**. Nincs PBC; a parancs *előbb* megy, mint a mapelt-flash írások (command-then-write).
 - Bekötött célok: AVR128DA48 (`1E 97 08`), AVR64DD32 (`1E 96 1A`), AVR128DB48 (`1E 97 0C`).
 
-## 7. Signature-tábla (HW-n ELLENŐRIZENDŐ)
+## 7. Signature-tábla (teljes UPDI-paletta)
 
-A `avr_updi.c` `UPDI_TABLE`-je a signature → név/flash/lap/flash_base leképzés.
-Jelenlegi belépők (a signature-értékeket valódi chipen verifikálni kell):
-ATtiny412/414/814/816/1614/1616/3216/3217, ATmega4808/4809. A flash_base
-tinyAVR-en `0x8000`, megaAVR0-n `0x4000`.
+A `avr_updi.c` `UPDI_TABLE`-je a **teljes UPDI-s AVR paletta** (`avrdude.conf`-ból
+generálva): **131 rész** — signature → név/flash/lap/flash_base/nvm_ver/addr24.
+Bontás: **v0** (tinyAVR 0/1/2 + megaAVR0, flash_base tiny=`0x8000`/mega0=`0x4000`) = 46,
+**v2** (AVR Dx: DA/DB/DD/DU/LA/SD, flash_base `0x800000`, 24-bit) = 66,
+**v3/v4** (AVR Ex: EA/EB) = 19 — az Ex csak **detektálható**, a flashelést a
+`avr_updi.c` `ESP_ERR_NOT_SUPPORTED`-del elutasítja (NVMCTRL v3 még nincs bekötve).
+A táblát a `tools/`-beli avrdude.conf-parser generálja; a nvm_ver-t a flash-bázis dönti.
 
 ## 8. Bring-up checklist (valódi célon)
 

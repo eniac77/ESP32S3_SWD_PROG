@@ -97,6 +97,10 @@ A SWD/UPDI-fegyelem itt is áll (csendben, lépésenként):
 5. **Paritás/framing**: ha sok az `RX paritashiba`/`framing`, a fél-órajel (`PDI_HALF_US`) vagy a mintavételi él hangolandó.
 6. **Egy lap** programozása + visszaolvasás, mielőtt a teljes képet futtatnád.
 
+> **Signature-tábla (teljes XMEGA-paletta):** a `PDI_TABLE` az `avrdude.conf`-ból
+> generált **38 ATxmega** (A1/A3/A4/B1/B3/C3/C4/D3/D4/E5 sorozatok, 8–384 KB),
+> `tools/avr_palette_gen.py`. Lapméret 128/256/512 B (A4U datasheet + avrdude.conf).
+
 ## 7. Hátralévő / bizonytalan (HW-validáció tisztázza)
 
 - ✅ **Cím-térkép + trigger tisztázva** (avrdude/pdi-pruss): I/O @ `0x01000000+`, flash @ `0x00800000`, page-write = flash-címre írás, buffer/chip-erase = CMDEX. A signature `MCU.DEVID`-ből (`0x01000090`).
