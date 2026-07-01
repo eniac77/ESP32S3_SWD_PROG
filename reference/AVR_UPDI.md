@@ -1,6 +1,9 @@
 # AVR UPDI — protokoll- és bring-up referencia
 
-**Állapot:** implementálva (`components/avr_updi/`), **HW-n MÉG NEM IGAZOLT**.
+**Állapot:** implementálva (`components/avr_updi/`), **HW-n MÉG NEM IGAZOLT**, de a
+protokoll-konstansok és a program-szekvenciák a Microchip **pymcuprog** forráshoz
+(`serialupdi/constants.py`, `link.py`, `nvmp0.py`, `nvmp2.py`) **hitelesítve**.
+Támogatott: **NVMCTRL v0** (tinyAVR/megaAVR 0/1/2) ÉS **v2** (AVR Dx: DA/DB/DD).
 Ez a doksi a `avr_updi.c`-ben bekötött protokollt írja le, és a valódi célon
 való bring-up-hoz ad checklistet — olvasd el UPDI-munka előtt, ahogy a
 [MILESTONE_SWD_HW.md](MILESTONE_SWD_HW.md)-t SWD előtt.
@@ -85,6 +88,10 @@ LDCS ASI_SYS_STATUS → NVMPROG(0x08)? // prog-módban vagyunk?
 - NVMPROG: `"NVMProg "` — flash/EEPROM írás engedélyezése
 - CHIPERASE: `"NVMErase"` — teljes törlés (lockolt chip nyitása); **még nincs bekötve**
 
+> **KEY-fordítás (gyakori buktató):** a pymcuprog `link.key()` a kulcsot `reversed()`
+> sorrendben küldi — `"NVMProg "` a vonalra `20 67 6F 72 50 4D 56 4E`. A `avr_updi.c`
+> ezt megteszi (`rev[i] = key[7-i]`).
+
 ## 6. NVMCTRL v0 — programozási folyam (tinyAVR/megaAVR 0/1/2)
 
 Címek a UPDI data-map-ben:
@@ -110,6 +117,27 @@ wait FBUSY=0  (WRERROR=0!)
 
 A **verify** visszaolvasás `LDS(flash_base + i)` + összevetés. Kilépés: `ASI_RESET_REQ` 0x59→0x00 (az alkalmazás fut, UPDI elenged).
 
+> A `avr_updi.c` a pymcuprog-mintát követi: **chip erase (CHER) egyszer előre**, majd
+> laponként **PBC → page-buffer feltöltés → WP** (nem ERWP-per-lap). A page-buffert
+> **ST-pointer + word-írás** (`ST ptr` → `ST *(ptr++)` DATA_16) tölti, ami sokkal
+> kevesebb bájt a vonalon, mint a per-bájt STS.
+
+## 6b. NVMCTRL v2 — AVR Dx (DA/DB/DD)
+
+Az AVR Dx **24-bites** UPDI-címzést használ, a flash a data-map-ben **`0x800000`**-nál,
+lapméret **512 B**. Az NVMCTRL bázis ugyanúgy `0x1000`, de a **parancskészlet más**:
+
+| Parancs | v2 CMD |
+|---|---|
+| NOCMD | `0x00` |
+| FLASH_WRITE (page write) | `0x02` |
+| FLASH_PAGE_ERASE | `0x08` |
+| CHIP_ERASE | `0x20` |
+
+- STATUS hibamező: **bit5:4 (`0x30`)**, nem a v0 egyetlen WRERROR-bitje (`0x04`).
+- Folyam (pymcuprog `nvmp2`): chip erase előre, majd laponként **FLASH_WRITE → buffer feltöltés (word) → wait → NOCMD**. Nincs PBC; a parancs *előbb* megy, mint a mapelt-flash írások (command-then-write).
+- Bekötött célok: AVR128DA48 (`1E 97 08`), AVR64DD32 (`1E 96 1A`), AVR128DB48 (`1E 97 0C`).
+
 ## 7. Signature-tábla (HW-n ELLENŐRIZENDŐ)
 
 A `avr_updi.c` `UPDI_TABLE`-je a signature → név/flash/lap/flash_base leképzés.
@@ -131,9 +159,9 @@ A SWD-tanulság (csendben, lépésenként, loopback-kel bizonyítva) itt is áll
 
 ## 9. Hátralévő / bővítés
 
-- **AVR Dx/Ex (NVMCTRL v2+)**: más NVMCTRL-cím (`0x1000` base, de eltérő parancs-kódok, flash @ `0x800000` map), 512 bájtos lapok, külön „flash mapped write" mód. Külön descriptor-variáns kell.
+- **AVR Dx (NVMCTRL v2)**: ✅ bekötve (lásd 6b). Hátra: **AVR Ex** (v3/v4), és a v2 signature-sor címe (`SIGROW` a Dx data-map-ben — a detect jelenleg `0x1100`-at olvas, ez Dx-en ELLENŐRIZENDŐ).
 - **CHIPERASE kulcs** lockolt chiphez (`"NVMErase"`), és a `.cfg`/EEPROM kezelés.
-- **Sebesség**: a jelenlegi per-bájt `STS` lassú; a pointer + `REPEAT` + `ST *(ptr++)` streaminggel a lap-írás sokszorosára gyorsul (a `avr_updi.c`-ben TODO).
+- **RSD streaming** (még gyorsabb): a lap-fill jelenleg ACK-olt word-írás (`ST *(ptr++)` DATA_16 per word). A pymcuprog ACK-mentes RSD-blokkja (`CTRLA=0x88` ↔ `0x80`) tovább gyorsít — HW-validáció után érdemes.
 - **UI-menü**: külön változik (a `ui.c` átalakítás alatt), ebben a komponensben szándékosan nincs bekötve.
 
 ## Referenciák

@@ -1,9 +1,16 @@
 # AVR PDI (XMEGA) — protokoll- és bring-up referencia
 
-**Állapot:** implementálva (`components/avr_pdi/`), **HW-n MÉG NEM IGAZOLT**.
-Ez a doksi a `avr_pdi.c`-ben bekötött protokollt írja le, és a valódi célon való
-bring-up-hoz ad checklistet. Társdoksik: [AVR_UPDI.md](AVR_UPDI.md),
+**Állapot:** implementálva (`components/avr_pdi/`), **HW-n MÉG NEM IGAZOLT**, de a
+konstansok az **avrdude** + a **pdi-pruss** XMEGA NVM-driver + **avr-libc** `iox*.h`
+forrásokhoz **hitelesítve**. Ez a doksi a `avr_pdi.c`-ben bekötött protokollt írja le,
+és a valódi célon való bring-up-hoz ad checklistet. Társdoksik: [AVR_UPDI.md](AVR_UPDI.md),
 [MILESTONE_SWD_HW.md](MILESTONE_SWD_HW.md).
+
+> **Kritikus cím-korrekció:** az I/O-regiszterek (NVM-vezérlő, MCU.DEVID) a PDI
+> **data-space bázisán** (`0x01000000`) vannak. Tehát az NVM-vezérlő valós címe
+> **`0x010001C0`** (nem `0x01C0`), a MCU.DEVID **`0x01000090`** — emiatt **4-bájtos
+> (long) LDS/STS-címzés** kell. A flash a saját bázisán (`0x00800000`) van, oda nem
+> jön a data-space offset.
 
 ## 1. Mire való, milyen célok
 
@@ -47,28 +54,37 @@ PDI control/status regiszterek (LDCS/STCS): `0x00 STATUS` (NVMEN=bit1), `0x01 RE
 
 ## 5. XMEGA NVM-vezérlő
 
-Data-space regiszterek (base **0x01C0**): `ADDR0..2 (0x01C0..)`, `DATA0 (0x01C4)`,
-`CMD (0x01CA)`, `CTRLA (0x01CB, CMDEX=bit0)`, `STATUS (0x01CF, NVMBUSY=bit7, FBUSY=bit6)`.
+NVM-vezérlő bázis a data-space-ben: **`0x010001C0`** (I/O `0x01C0` + data-base `0x01000000`).
+Regiszterek: `ADDR0..2 (+0x00..)`, `DATA0 (+0x04)`, `CMD (+0x0A → 0x010001CA)`,
+`CTRLA (+0x0B → 0x010001CB, CMDEX=bit0)`, `STATUS (+0x0F → 0x010001CF, NVMBUSY=bit7, FBUSY=bit6)`.
 
 Parancsok (CMD): NOP=0x00, **CHIP_ERASE=0x40**, **READ_NVM=0x43**,
-**LOAD_FLASH_BUFFER=0x23**, ERASE_FLASH_BUFFER=0x26, **ERASE_WRITE_FLASH_PAGE=0x2F**.
+**LOAD_FLASH_BUFFER=0x23**, **ERASE_FLASH_BUFFER=0x26**, **ERASE_WRITE_FLASH_PAGE=0x2F**.
 
-**Signature:** `MCU.DEVID0..2` a data-space `0x0090..0x0092`-n → `LDS` közvetlenül
-(nem kell NVM-parancs).
+**Trigger-szemantika (KULCS):** a „manuális" parancsokat (buffer-erase, chip-erase)
+a **`CTRLA.CMDEX=1`** indítja; a **page-write**-ot viszont a **flash-címre írás**
+(egy dummy store a lap-címre) triggereli — a lapcím-bitek beütemezik a lapot.
 
-**Flash leképzése a PDI cím-térben:** `PDI_FLASH_BASE = 0x00800000` (XMEGA app flash).
+**Signature:** `MCU.DEVID0..2` a data-space `0x01000090..92`-n → `LDS` közvetlenül.
 
-Lap-programozás (kódban):
+**Flash leképzése:** `PDI_FLASH_BASE = 0x00800000` (XMEGA app flash, saját bázis).
+
+Lap-programozás (kódban — nincs külön chip-erase, mert az letiltaná az NVMEN-t;
+helyette per-lap erase+write):
 ```
-CHIP_ERASE -> CMDEX -> NVMBUSY poll          // app szekció törlése
 for each page:
+    CMD = ERASE_FLASH_BUFFER; CTRLA.CMDEX=1; NVMBUSY poll   // buffer törlés (CMDEX)
     CMD = LOAD_FLASH_BUFFER
-    for b in page: STS (flash_base + addr + b) = data[b]   // page buffer
+    ST ptr = page_addr; for b: ST *(ptr++) = data[b]        // page buffer feltöltés
     CMD = ERASE_WRITE_FLASH_PAGE
-    STS (flash_base + page_addr) = 0          // a flash-iras triggereli a parancsot
+    ST ptr = page_addr; ST *(ptr++) = 0x00                  // flash-iras = trigger
     NVMBUSY poll
-verify: CMD = READ_NVM; LDS (flash_base + i)  // visszaolvasas + osszevetes
+verify: CMD = READ_NVM; LDS (flash_base + i)                // visszaolvasas + osszevetes
 ```
+
+> **Megjegyzés a chip-erase-ről:** a `CHIP_ERASE (0x40, CMDEX)` **letiltja az NVMEN-t**,
+> utána újra KEY kell. Ezért a kód a biztonságos per-lap erase+write utat választja;
+> ha valaha teljes törlés kell, a chip-erase után re-KEY-elni.
 
 ## 6. Bring-up checklist (valódi célon)
 
@@ -83,9 +99,9 @@ A SWD/UPDI-fegyelem itt is áll (csendben, lépésenként):
 
 ## 7. Hátralévő / bizonytalan (HW-validáció tisztázza)
 
-- A **flash-bázis** (`0x00800000`) és az **ERASE_WRITE_FLASH_PAGE trigger** módja (a kód a flash-címre írással triggerel; lehet, hogy `NVM_ADDR` + `CMDEX` kell helyette) — avrdude XMEGA-forrással egyeztetendő.
-- A **signature** olvasás `MCU.DEVID`-ből vs. a production signature row (NVM READ_NVM) — mindkettő járható, a DEVID az egyszerűbb.
-- **Lapméretek/flash-méretek** a `PDI_TABLE`-ben (HW-n ellenőrizendő).
+- ✅ **Cím-térkép + trigger tisztázva** (avrdude/pdi-pruss): I/O @ `0x01000000+`, flash @ `0x00800000`, page-write = flash-címre írás, buffer/chip-erase = CMDEX. A signature `MCU.DEVID`-ből (`0x01000090`).
+- **FBUSY bit-pozíció** (bit6) és a **PDI CTRL guard-time** kódolás a pdi-pruss makrókészletben nem szerepelt közvetlenül (a XMEGA `NVM_STATUS` / AVR1612 alapján) — HW-n ellenőrizendő.
+- **Lapméretek/flash-méretek** a `PDI_TABLE`-ben (ATxmega32A4 = 256 B lap, a többi 512 B — A4U datasheet igazolt, a többi avrdude.conf).
 - **EEPROM/fuse/lockbit** kezelés — még nincs.
 - **Sebesség**: a per-bájt `STS` lassú; `REPEAT` + `ST *(ptr++)` streaminggel gyorsítható.
 - **UI-menü**: külön változik (a `ui.c` átalakítás alatt), ebben a komponensben nincs bekötve.
