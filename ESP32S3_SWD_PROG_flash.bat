@@ -11,6 +11,8 @@ setlocal
 
 rem --- Allitsd at ide a sajat COM portodat ---
 set "PORT=COM18"
+rem --- Ha van .espport (a projekt portja ezen a gepen, egy sor, nincs a gitben), az erosebb ---
+if exist "%~dp0.espport" set /p PORT=<"%~dp0.espport"
 if not "%~1"=="" set "PORT=%~1"
 if "%PORT%"=="" set /p PORT=COM port pl. COM10:
 
